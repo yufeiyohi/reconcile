@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { adapterRegistry } from "../adapters/registry";
 import { fieldLabels, type Field, type ImportOptions } from "../adapters/types";
 import { detectHeader } from "../adapters/profiles";
@@ -19,7 +19,19 @@ export function FileEditor({
   busy: boolean;
 }) {
   const replaceInput = useRef<HTMLInputElement>(null);
+  const accountInput = useRef<HTMLInputElement>(null);
+  const accountHintId = useId();
   const [options, setOptions] = useState(entry.options);
+  const missingAccount =
+    options.mapping.account === undefined && !options.fixedAccount.trim();
+  const suggestedAccount = (
+    {
+      icbc: "工商银行",
+      cmb: "招商活期",
+      "cmb-credit": "招行信用卡(RMB)",
+      wechat: "微支付",
+    } as Record<string, string>
+  )[entry.source];
   const sheet = entry.file.sheets.find((s) => s.name === options.sheet)!;
   const headers = sheet.rows[options.headerRow - 1] || [];
   const set = (p: Partial<ImportOptions>) => setOptions({ ...options, ...p });
@@ -28,16 +40,25 @@ export function FileEditor({
       .flatMap((t) => (t.transactionDate ? [t.transactionDate] : []))
       .sort() || [];
   return (
-    <details className="file-editor" open={!entry.result}>
+    <details className="file-editor" open={!entry.result || !!entry.parseError}>
       <summary>
         <span className="file-name">▤ {maskAccount(entry.file.name)}</span>
         <span className={`pill ${entry.result ? "green" : ""}`}>
-          {entry.result
-            ? `${entry.result.transactions.length} 条有效 · ${entry.result.errors.length} 条错误`
-            : "待确认字段"}
+          {entry.parseError
+            ? "解析未完成 · 请查看提示"
+            : entry.result
+              ? `${entry.result.transactions.length} 条有效 · ${entry.result.errors.length} 条错误`
+              : "待确认字段"}
         </span>
       </summary>
       <div className="file-body">
+        {!entry.result && (
+          <p className={missingAccount ? "warning-box" : "subtle-note"}>
+            {missingAccount
+              ? "还需指定本文件的账户：账单中没有识别到账户列，请填写下方账户名称，再点击“确认映射并解析”。"
+              : "请核对下方预览和已选字段；确认无误后直接点击“确认映射并解析”，不需要逐个更改下拉框。"}
+          </p>
+        )}
         {entry.source === "suishouji" && entry.file.sheets.length > 1 && (
           <label className="check">
             <input
@@ -88,10 +109,19 @@ export function FileEditor({
           <label>
             文件指定账户（列为空时）
             <input
+              ref={accountInput}
+              aria-label="文件指定账户（列为空时）"
+              aria-invalid={missingAccount}
+              aria-describedby={missingAccount ? accountHintId : undefined}
               value={options.fixedAccount}
               onChange={(e) => set({ fixedAccount: e.target.value })}
               placeholder="例如：工行尾号 1234"
             />
+            {missingAccount && (
+              <small id={accountHintId} className="required-hint">
+                必填：可填写随手记中的对应账户名称
+              </small>
+            )}
           </label>
           <label>
             未映射币种时默认
@@ -104,6 +134,21 @@ export function FileEditor({
             </select>
           </label>
         </div>
+        {missingAccount && suggestedAccount && (
+          <div className="account-suggestion">
+            <span>账户名称建议（请核对）：</span>
+            <button
+              disabled={busy}
+              onClick={() => {
+                set({ fixedAccount: suggestedAccount });
+                accountInput.current?.focus();
+              }}
+            >
+              使用“{suggestedAccount}”
+            </button>
+            <small>同一来源有多个账户时，请分别填写名称。</small>
+          </div>
+        )}
         <p className="eyebrow">原始预览 · 前 5 行 · 账号脱敏</p>
         <div className="table-scroll preview">
           <table>
@@ -183,7 +228,10 @@ export function FileEditor({
           <button
             className="primary"
             disabled={busy}
-            onClick={() => onApply(options)}
+            onClick={() => {
+              if (missingAccount) accountInput.current?.focus();
+              onApply(options);
+            }}
           >
             确认映射并解析
           </button>
@@ -212,6 +260,18 @@ export function FileEditor({
             本次版本：{entry.file.id.slice(0, 8)} · {entry.importedAt}
           </small>
         </div>
+        {entry.parseError && (
+          <p className="error-box file-parse-feedback" role="alert">
+            解析未完成：{entry.parseError}。请修改对应字段后重试。
+          </p>
+        )}
+        {entry.result && !entry.parseError && (
+          <p className="subtle-note file-parse-feedback">
+            解析完成：{entry.result.transactions.length} 条有效，
+            {entry.result.errors.length}{" "}
+            条错误。下一步到“关联账户与期间”设置对应账户。
+          </p>
+        )}
         {entry.result && (
           <div className="import-details">
             <p>
@@ -367,9 +427,11 @@ export function ImportPanel({
                       <div className="imported-file-info">
                         <strong>{maskAccount(entry.file.name)}</strong>
                         <small>
-                          {entry.result
-                            ? `已解析 · ${entry.result.transactions.length} 条有效${entry.result.errors.length ? ` · ${entry.result.errors.length} 条错误` : ""}`
-                            : "已载入 · 待确认字段映射"}
+                          {entry.parseError
+                            ? `解析未完成：${entry.parseError}`
+                            : entry.result
+                              ? `已解析 · ${entry.result.transactions.length} 条有效${entry.result.errors.length ? ` · ${entry.result.errors.length} 条错误` : ""}`
+                              : "已载入 · 待确认字段映射"}
                         </small>
                       </div>
                     </li>

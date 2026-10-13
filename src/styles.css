@@ -527,6 +527,28 @@ h3 {
   gap: 20px;
   margin: 15px 0;
 }
+.required-hint {
+  color: #a54b26;
+  font-size: 11px;
+}
+.file-body input[aria-invalid="true"] {
+  border-color: #bb794b;
+  background: #fffaf2;
+}
+.account-suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+  font-size: 12px;
+}
+.account-suggestion small {
+  color: #687c70;
+}
+.file-parse-feedback {
+  margin-top: 12px;
+}
 .check {
   display: flex !important;
   align-items: center;

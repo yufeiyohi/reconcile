@@ -6,6 +6,7 @@ export interface ImportedFile {
   file: ParsedFile;
   options: ImportOptions;
   result?: ParseResult;
+  parseError?: string;
   importedAt: string;
 }
 export interface Decision {

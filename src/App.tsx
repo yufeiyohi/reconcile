@@ -203,15 +203,36 @@ export default function App() {
   async function apply(key: string, options: ImportOptions) {
     await task(async (token) => {
       const entry = files.find((f) => f.key === key)!;
-      const parsed = await workerTask<ParseResult>("normalize", {
-        source: entry.source,
-        file: entry.file,
-        options,
-      });
+      setFiles((fs) =>
+        fs.map((f) => (f.key === key ? { ...f, parseError: undefined } : f)),
+      );
+      let parsed: ParseResult;
+      try {
+        parsed = await workerTask<ParseResult>("normalize", {
+          source: entry.source,
+          file: entry.file,
+          options,
+        });
+      } catch (e) {
+        if (active(token)) {
+          const parseError =
+            e instanceof Error
+              ? e.message || "解析失败，请检查字段设置后重试"
+              : "解析失败，请重试";
+          setFiles((fs) =>
+            fs.map((f) => (f.key === key ? { ...f, parseError } : f)),
+          );
+        }
+        throw e;
+      }
       if (!active(token)) return;
       invalidate();
       setFiles((fs) =>
-        fs.map((f) => (f.key === key ? { ...f, options, result: parsed } : f)),
+        fs.map((f) =>
+          f.key === key
+            ? { ...f, options, result: parsed, parseError: undefined }
+            : f,
+        ),
       );
       setMessage(
         `解析完成：${parsed.transactions.length} 条有效，${parsed.errors.length} 条错误。请关联账户后开始对账。`,

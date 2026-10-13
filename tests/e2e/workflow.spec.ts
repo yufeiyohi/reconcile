@@ -244,3 +244,35 @@ test("drag-and-drop and overlapping files preserve every legitimate row", async 
   await expect(page.locator("#settings")).toContainText("2 条有效记录");
   await transfer.dispose();
 });
+
+test("missing statement account is explained beside the fields and parse button", async ({
+  page,
+}) => {
+  await page.goto("./");
+  for (const [source, account] of [
+    ["工商银行", "工商银行"],
+    ["招商银行借记卡", "招商活期"],
+    ["微信支付", "微支付"],
+  ]) {
+    await page.getByLabel(`上传${source}`, { exact: true }).setInputFiles({
+      name: `人工构造-${source}.csv`,
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        `日期,方向,金额,摘要,币种\n2026-01-01,支出,10,人工构造${source},CNY`,
+      ),
+    });
+    const entry = page
+      .locator(".source-file")
+      .filter({ hasText: `人工构造-${source}.csv` });
+    await expect(entry).toContainText("还需指定本文件的账户");
+    const input = entry.getByLabel("文件指定账户（列为空时）", { exact: true });
+    await expect(input).toHaveAttribute("aria-invalid", "true");
+    await entry.getByRole("button", { name: "确认映射并解析" }).click();
+    await expect(entry.getByRole("alert")).toContainText("未识别账户");
+    await entry.getByRole("button", { name: `使用“${account}”` }).click();
+    await expect(input).toHaveValue(account);
+    await entry.getByRole("button", { name: "确认映射并解析" }).click();
+    await expect(entry.locator("summary")).toContainText("1 条有效 · 0 条错误");
+    await expect(entry.getByRole("alert")).toHaveCount(0);
+  }
+});
