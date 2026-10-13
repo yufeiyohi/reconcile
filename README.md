@@ -1,19 +1,21 @@
 # 清账 · Reconcile
 
-浏览器本地运行的中文个人流水对账网站：将随手记账本与工商银行、招商银行借记卡、招商银行信用卡、微信支付逐账户核对，定位疑似漏记、多记、重复、日期、方向及金额差异，并追溯到原文件行号。
+[简体中文](README.zh-CN.md)
 
-**公开代码不等于公开账单。真实账单、导出报告和凭证不能提交到此仓库。** 网站不上传账单、不接入 AI、不登录银行、不执行支付，也不会修改随手记。会话数据默认仅在内存中保存，刷新或关闭页面即清除。
+A browser-local personal transaction reconciliation app with a Chinese-language interface. Compare your Suishouji (随手记) ledger against statements from ICBC, China Merchants Bank debit cards, China Merchants Bank credit cards, and WeChat Pay, account by account. Identify potential missing, extra, or duplicate entries, as well as date, direction, and amount discrepancies, and trace each result back to its original file and row.
 
-## 本地运行
+**Public source code does not mean public financial data. Never commit real statements, exported reports, or supporting documents to this repository.** The app does not upload statements, use AI, log in to banks, make payments, or modify Suishouji. Session data is kept in memory by default and cleared when you refresh or close the page.
 
-需要 Node.js 24 和 npm，使用支持 Web Worker、BigInt、Web Crypto 的现代浏览器。
+## Run locally
+
+Requires Node.js 24 and npm, plus a modern browser with support for Web Workers, BigInt, and Web Crypto.
 
 ```bash
 npm ci
 npm run dev
 ```
 
-打开终端显示的本地地址。直接双击 index.html 不支持 Worker，应通过开发或静态服务器运行。“试用合成示例”可体验完整流程，示例全部为人工构造。
+Open the local URL printed in your terminal. Opening `index.html` directly is not supported because Workers require a development or static server. Use “试用合成示例” (Try synthetic examples) to explore the complete workflow with entirely artificial data.
 
 ```bash
 npm run typecheck
@@ -22,7 +24,7 @@ npm run build
 npm run preview
 ```
 
-端到端测试验证 /reconcile/ 子路径，包括文件导入、账户隔离、追溯、人工确认与撤销、替换账本、导出、刷新清空及手机布局：
+End-to-end tests exercise deployment under the `/reconcile/` subpath, covering file imports, account isolation, source tracing, manual confirmation and undo, ledger replacement, exports, clearing data on refresh, and mobile layout:
 
 ```bash
 npx playwright install --with-deps chromium
@@ -30,85 +32,85 @@ VITE_BASE_PATH=/reconcile/ npm run build
 npm run test:e2e
 ```
 
-测试优先使用 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH 指定的 Chromium；本机存在 /usr/bin/chromium 时使用它，否则使用 Playwright 安装的浏览器。测试只使用人工构造数据。
+Tests use the Chromium executable specified by `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` first, then `/usr/bin/chromium` if present, and otherwise the browser installed by Playwright. All test data is synthetic.
 
-## 新手最短路径
+## Quick start for first-time users
 
-首页在导入第一个文件前会显示“第一次用？三步就能对完一个月”引导卡，页头和页脚有“常见问题”。
+Before you import your first file, the home page displays a three-step getting-started card. A FAQ is available from the header and footer.
 
-1. 点“先用示例数据走一遍”，用人工构造数据体验完整流程。
-2. 换成自己的文件：按来源各选一个文件上传，导入后字段自动识别并解析，CSV 编码自动判断。
-3. 看页面顶部的“下一步”提示；“开始对账”按钮灰着时，按钮旁会列出还差哪几步。
-4. 名称能对上的账户已自动关联（标注“已自动关联 · 请核对”），核对后点“开始对账”。
-5. 结果页先读“第一次看结果？三步就够”，再逐条点“查看详情”，每种情况都有白话解释和处理建议。
+1. Click “先用示例数据走一遍” (Try the workflow with sample data) to explore the complete process using synthetic records.
+2. Replace the examples with your own files: select a file for each source. Fields are detected and parsed automatically, and CSV encoding is detected automatically.
+3. Follow the “下一步” (Next step) prompt at the top of the page. If “开始对账” (Start reconciliation) is disabled, the remaining requirements are listed beside it.
+4. Accounts with uniquely matching names are linked automatically and marked “已自动关联 · 请核对” (Automatically linked — please verify). Check the links, then start reconciliation.
+5. Read the three-step introduction on the results page, then open individual details. Each situation includes a plain-language explanation and suggested next steps.
 
-只有在自动识别不出来时才需要动手：账单里没有账户列、模板不认识、或 CSV 编码特殊。
+Manual intervention is needed only when automatic detection is insufficient, such as a statement without an account column, an unrecognized template, or a CSV with an unusual encoding.
 
-## 使用流程
+## Workflow
 
-1. 按来源导入，可以一次选择多个文件。CSV 编码默认自动识别（UTF-8 / GB18030 / GBK / UTF-16），识别为非 UTF-8 时会提示，也可手动指定。支持拖拽、移除文件和取消处理。
-2. 导入后立即用自动识别的工作表、表头行和字段映射解析；结果显示在文件卡片上，文件详情默认折叠。只有解析失败的文件会自动展开并说明原因（例如没有账户列）。展开详情可检查 5 行预览、修改字段后点击“确认映射并解析”重试；解析错误行可点“在预览中查看这一行”直接定位到原文件。无本人账户列时，会高亮提示必填账户，并提供账户名称快捷填写按钮（请核对后使用）；不能把“对方账户”当成本人账户。
-3. 随手记多表文件可同时解析“支出 / 收入 / 转账”。转账每行拆成两条关联的账户收支，按各账户对账，不重复视为消费。
-4. 关联随手记与来源账户。账户名称能唯一对上来源时会自动预选并标注“已自动关联 · 请核对”；自己改过或清空的选择不会被覆盖，同一来源有多个账户时不猜测。例如本次提供的账户关系：
+1. **Import files by source.** You can select multiple files at once. CSV encoding is detected automatically (UTF-8 / GB18030 / GBK / UTF-16); a notice appears when a non-UTF-8 encoding is detected, and you can override the encoding manually. Drag-and-drop, file removal, and cancellation are supported.
+2. **Review parsing results.** Files are parsed immediately using the detected worksheet, header row, and field mapping. Results appear on each file card, with details collapsed by default. Failed files expand automatically and explain the problem, such as a missing account column. Expand the details to inspect a five-row preview, adjust fields, and click “确认映射并解析” (Confirm mapping and parse) to retry. For invalid rows, “在预览中查看这一行” (View this row in the preview) jumps directly to the source row. If the file has no column identifying your own account, the required account field is highlighted and account-name shortcuts are provided for you to verify. Do not use the counterparty's account as your own account.
+3. **Handle Suishouji transfers.** Multi-sheet files can parse expenditure, income, and transfer sheets together. Each transfer row becomes two linked account entries, reconciled separately by account rather than counted again as spending.
+4. **Link ledger and source accounts.** A unique name match is preselected automatically and marked for verification. Manual changes or cleared selections are not overwritten; when a source has multiple accounts, the app does not guess. Example mappings from the supplied samples:
 
-   | 来源             | 对应随手记账户  |
-   | ---------------- | --------------- |
-   | 工商银行         | 工商银行        |
-   | 招商银行借记卡   | 招商活期        |
-   | 招行信用卡人民币 | 招行信用卡(RMB) |
-   | 微信支付         | 微支付          |
+   | Source | Suishouji account |
+   | --- | --- |
+   | ICBC | 工商银行 |
+   | China Merchants Bank debit card | 招商活期 |
+   | China Merchants Bank credit card, CNY | 招行信用卡(RMB) |
+   | WeChat Pay | 微支付 |
 
-   同一家银行多张卡应指定不同账户。未映射账户显示“未纳入本次对账”。微信与银行卡可能记录同一次支付，跨渠道汇总不能直接解释为总消费。
+   Assign distinct accounts to different cards from the same bank. Unmapped accounts are marked as excluded from the current reconciliation. WeChat Pay and bank statements may represent the same payment, so combined totals across channels cannot simply be treated as total spending.
 
-5. 选择账户和期间。日期口径、容差、按编号匹配收在“高级规则（不清楚就保持默认）”里，默认折叠。未满足开始条件时，“开始对账”旁会列出还差哪几步。仅对 CNY 自动对账。文件首末交易日只是观测范围，不能证明中间没有缺页；范围不足的记录不直接判为漏记。
-6. 查看差异、逐日汇总与全部匹配。每种情况都配有白话解释（这是什么、该怎么办）：结果顶部有“第一次看结果？三步就够”，筛选某一类别时显示该类别的说明，详情弹窗以说明开头。记录可定位到文件、工作表和原始行；PDF 提供页码和按坐标重建的文本行号。CSV 多行单元格算一条逻辑行。
-7. 在详情里确认候选，或勾选记录后一对多 / 多对一匹配。必须同账户、CNY、同方向、合计金额一致。金额或方向不同不能强行匹配，应核实后修订源账本。支持撤销、本地备注、“已核实”及“准备修订”标记；标记不改变原始差额。
-8. 导出 CSV。表头为白话列名（这是什么情况 / 该怎么办 / 金额差（银行 − 随手记）/ 在哪个文件的第几行 / 你的处理），并为每行附上处理建议。报告包含全部结果、错误、警告、人工状态、来源位置和设置，不随筛选隐藏记录；各行列数一致。导出前提醒财务风险，并转义公式触发文本。
-9. 修订随手记后重新导入，默认替换旧版随手记，保留银行文件。单次多选属于同一新版批次，额外追加须显式勾选。重新计算会重新验证人工组，显示旧差异消失 / 仍存在 / 新增的数量。无稳定业务编号时不承诺准确继承决策。
+5. **Choose accounts and a date range.** The date basis, tolerance, and transaction-ID matching are tucked into the collapsed advanced-rules section; keep the defaults if unsure. Missing requirements are shown beside the start button. Automatic reconciliation applies only to CNY. The first and last transaction dates are merely the observed range, not proof that no pages or periods are missing. Records with insufficient coverage are not directly classified as missing entries.
+6. **Review differences, daily summaries, and matches.** Each category includes an explanation of what it means and what to do next. The results page has a first-time guide, category filters display contextual explanations, and detail dialogs begin with guidance. Records can be traced to their file, worksheet, and original row. PDFs include page numbers and text-line numbers reconstructed from coordinates. A multiline CSV cell belongs to one logical row.
+7. **Confirm or group matches manually.** Confirm a candidate in its details, or select records for one-to-many or many-to-one matching. Records must share the same account, CNY currency, and transaction direction, with equal total amounts. Differences in amount or direction cannot be forced into a match; verify them and correct the source ledger instead. Undo, local notes, and verified / ready-to-revise markers are supported. Markers do not change the original discrepancy.
+8. **Export a CSV report.** Columns use plain-language Chinese labels describing the situation, suggested action, amount difference (bank minus Suishouji), source location, and your handling status. Each row includes guidance. The report contains all results, errors, warnings, manual statuses, source locations, and settings, regardless of active filters, and all rows have the same column count. A financial-risk notice appears before export, and text that could trigger spreadsheet formulas is escaped.
+9. **Re-import after correcting Suishouji.** By default, the new Suishouji batch replaces the previous ledger while bank files are retained. Multiple files selected together form one replacement batch; additional appends require an explicit opt-in. Recalculation revalidates manual groups and reports how many previous differences disappeared, remain, or are new. Without stable transaction identifiers, previous decisions cannot be guaranteed to carry over accurately.
 
-## 格式支持与边界
+## Supported formats and limitations
 
-| 来源            | 支持情况                                                                   |
-| --------------- | -------------------------------------------------------------------------- |
-| 通用 CSV / XLSX | 表头行选择、预览、手动字段映射                                             |
-| 随手记 XLS      | 已按提供样本验证支出 / 收入 / 转账三表                                     |
-| 工行 CSV        | 已验证样本结构；采用**记账金额 / 记账币种**，排除汇总尾行                  |
-| 招行借记卡 CSV  | 已验证样本结构；YYYYMMDD 和独立收入 / 支出列                               |
-| 微信支付 XLSX   | 已验证样本结构；收支方向优先于交易类型，退款与原交易分开保留               |
-| 招行信用卡 PDF  | **仅文本型人民币交易表**；已按提供样本验证，支持跨年、单独入账日和页行追溯 |
+| Source | Support |
+| --- | --- |
+| Generic CSV / XLSX | Header-row selection, previews, and manual field mapping |
+| Suishouji XLS | Expenditure, income, and transfer sheets validated against supplied samples |
+| ICBC CSV | Sample structure validated; uses **posted amount / posted currency** and excludes trailing summary rows |
+| China Merchants Bank debit card CSV | Sample structure validated; supports YYYYMMDD dates and separate income / expenditure columns |
+| WeChat Pay XLSX | Sample structure validated; transaction direction takes precedence over transaction type, and refunds remain separate from original transactions |
+| China Merchants Bank credit card PDF | **Text-based CNY transaction tables only**; sample structure validated, with cross-year dates, posting-date-only records, and page / line tracing |
 
-用户在初始需求后授权扩展了 XLS、文本 PDF 和微信支付。**没有宣称支持全部官方导出版本；其他官方导出模板尚未验证。** 未识别模板可使用通用字段映射；PDF 排版不匹配、扫描件、图片、加密文件、公式、宏和外部工作簿链接会拒绝。XLS 只接受真正的 BIFF 文件，不接受 HTML 伪装文件。
+Support for XLS, text-based PDF, and WeChat Pay was added with user authorization after the initial requirements. **Support for every official export version is not claimed; other official templates have not been validated.** Unrecognized spreadsheet templates can use generic field mapping. Unsupported PDF layouts, scanned documents, images, encrypted files, formulas, macros, and external workbook links are rejected. XLS must be a genuine BIFF file, not HTML disguised as a spreadsheet.
 
-信用卡还款有时只有入账日，交易日期保持为空。统一选择入账日时，其他文件也须提供入账日，不会自动回退到交易日。转账、信用卡分期 / 还款性质不自动推断。微信“不计收支”等无法确定方向的行进入错误列表。
+Some credit-card repayments provide only a posting date; their transaction date remains empty. If you select posting dates as the common date basis, other files must also provide posting dates—there is no automatic fallback to transaction dates. Transfers, credit-card installments, and repayment classifications are not inferred automatically. WeChat rows such as “不计收支” (Neither income nor expenditure), whose direction cannot be determined, are listed as errors.
 
-金额以分单位十进制字符串保存，累计和比较使用 BigInt。Excel 原文件若已丢失精度，网站不能恢复。输入金额最多两位小数；识别出的非 CNY 币种保留，但不自动对账。
+Amounts are stored as decimal strings in cents, with BigInt used for aggregation and comparison. Precision already lost in an Excel source file cannot be recovered. Input amounts may have at most two decimal places. Recognized non-CNY currencies are retained but are not reconciled automatically.
 
-## 静态部署
+## Static deployment
 
-无需后端、数据库、密钥或真实账单。dist/ 仅包含应用和合成演示。
+No backend, database, secrets, or real statements are required. `dist/` contains only the application and synthetic examples.
 
-通用部署：npm run build 后发布 dist/，默认使用相对资源路径。GitHub Pages 项目站点：
+For a general deployment, run `npm run build` and publish `dist/`. Asset paths are relative by default. For a GitHub Pages project site:
 
 ```bash
 VITE_BASE_PATH=/reconcile/ npm run build
 VITE_BASE_PATH=/reconcile/ npm run preview
 ```
 
-在 GitHub 仓库 Settings → Pages 选择 GitHub Actions，手动运行 **Deploy static site** 工作流。工作流按仓库名设置子路径；不在普通推送时自动发布。自定义域名根路径把 VITE_BASE_PATH 设为 /。静态服务器须正确提供 JS 模块 MIME 类型与 Worker 文件。
+In the GitHub repository, go to **Settings → Pages**, select **GitHub Actions**, and manually run the **Deploy static site** workflow. The workflow sets the subpath from the repository name; ordinary pushes do not automatically publish the site. For a custom domain served at its root, set `VITE_BASE_PATH=/`. The static server must serve JavaScript modules with the correct MIME type and make Worker files available.
 
-CI 在推送和 PR 时运行类型检查、单元测试、构建、Playwright。本交付只验证本机生产构建和子路径，未代替用户发布 GitHub Pages。
+CI runs type checking, unit tests, a build, and Playwright on pushes and pull requests. The original delivery validated the local production build and subpath behavior; it did not publish GitHub Pages on the user's behalf.
 
-## 结构和文档
+## Project structure and documentation
 
-- src/adapters/：来源注册表、通用映射及样本结构适配。
-- src/domain/transactions/：模型、金额和日期规则。
-- src/domain/reconciliation/：独立、确定性的引擎、汇总及账户关联建议，不依赖 React / DOM。
-- src/workers/：文件限额与解析、匹配线程、取消与超时。
-- src/components/、src/App.tsx：中文界面及内存会话。
-- src/export/：防公式注入的 CSV 导出。
-- tests/：合成夹具、Vitest 与 Playwright。
-- [常见问题](docs/faq.md)、[匹配规则](docs/matching.md)、[适配器指南](docs/adapters.md)、[隐私与限制](docs/privacy.md)、[依赖与许可证](docs/dependencies.md)、[验证记录](docs/validation.md)。
+- `src/adapters/`: source registry, generic mapping, and sample-specific adapters.
+- `src/domain/transactions/`: transaction models, amount handling, and date rules.
+- `src/domain/reconciliation/`: independent, deterministic reconciliation, summaries, and account-link suggestions; no React or DOM dependency.
+- `src/workers/`: file limits, parsing, matching workers, cancellation, and timeouts.
+- `src/components/` and `src/App.tsx`: Chinese-language interface and in-memory session state.
+- `src/export/`: CSV exports with formula-injection protection.
+- `tests/`: synthetic fixtures, Vitest, and Playwright.
+- Additional documentation (in Chinese): [FAQ](docs/faq.md), [Matching rules](docs/matching.md), [Adapter guide](docs/adapters.md), [Privacy and limitations](docs/privacy.md), [Dependencies and licenses](docs/dependencies.md), and [Validation notes](docs/validation.md).
 
-## 许可证
+## License
 
-项目使用 [MIT](LICENSE)，保留原版权声明。第三方依赖按其自身许可证分发，PDF.js 和 SheetJS CE 为 Apache-2.0。真实账单不属于公开代码或测试数据。
+Licensed under [MIT](LICENSE); retain the original copyright notice. Third-party dependencies are distributed under their respective licenses. PDF.js and SheetJS CE use Apache-2.0. Real statements are not part of the public source code or test data.
