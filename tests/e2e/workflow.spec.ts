@@ -358,3 +358,47 @@ test("a GB18030 CSV imports without touching the encoding picker", async ({
   await page.locator(".file-editor summary").click();
   await expect(page.locator(".import-details")).toContainText("GB18030");
 });
+
+test("results explain each situation in plain language, and bad rows can be previewed", async ({
+  page,
+}) => {
+  await page.goto("./");
+  // Advanced matching rules start collapsed; the dates a beginner needs do not.
+  await expect(page.getByLabel("开始日期")).toBeVisible();
+  await expect(page.getByLabel("按哪个日期比对")).toBeHidden();
+  await page.getByRole("button", { name: "试用合成示例" }).click();
+  await expect(page.getByRole("status")).toContainText("已载入人工构造");
+  await page.getByRole("button", { name: "开始对账" }).click();
+  await expect(page.locator(".reading-guide")).toContainText("查看详情");
+  await page.getByLabel("筛选差异类别").selectOption("missing");
+  await expect(page.locator(".status-help").first()).toContainText(
+    "银行有这笔，随手记里没找到",
+  );
+  await page.getByRole("button", { name: "查看详情" }).first().click();
+  await expect(page.locator(".detail-modal .status-help")).toContainText(
+    "核实后到随手记补记",
+  );
+  await page.getByRole("button", { name: "关闭详情" }).click();
+  await page.locator(".advanced-rules summary").click();
+  await expect(page.getByLabel("按哪个日期比对")).toBeVisible();
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "清除本次数据" }).click();
+  // A row the parser rejects can be located in the original file preview.
+  await page.getByLabel("上传工商银行", { exact: true }).setInputFiles({
+    name: "人工构造-错行.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      synthetic([
+        "2026-01-01,支出,10,工行尾号1234,人工构造超市,CNY",
+        "2026-01-02,支出,不是金额,工行尾号1234,人工构造错行,CNY",
+      ]),
+    ),
+  });
+  await expect(page.getByRole("status")).toContainText("1 条错误");
+  await page.locator(".file-editor summary").click();
+  await page.getByRole("button", { name: "在预览中查看这一行" }).click();
+  await expect(page.locator(".preview-target td").first()).toHaveText("3");
+  await expect(page.locator(".preview-target")).toContainText("人工构造错行");
+  await page.getByRole("button", { name: "回到表头下方" }).click();
+  await expect(page.locator(".preview-target")).toHaveCount(0);
+});

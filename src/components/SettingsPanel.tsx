@@ -139,47 +139,54 @@ export function SettingsPanel({
               />
             </label>
           </div>
-          <div className="form-grid">
-            <label>
-              按哪个日期比对
-              <select
-                value={settings.dateBasis}
-                onChange={(e) =>
-                  change({ dateBasis: e.target.value as Settings["dateBasis"] })
-                }
-              >
-                <option value="transactionDate">交易日期</option>
-                <option value="postingDate">入账日期</option>
-              </select>
-            </label>
-            <label>
-              允许日期相差几天
+          <details className="advanced-rules">
+            <summary>高级规则（不清楚就保持默认）</summary>
+            <div className="form-grid">
+              <label>
+                按哪个日期比对
+                <select
+                  value={settings.dateBasis}
+                  onChange={(e) =>
+                    change({
+                      dateBasis: e.target.value as Settings["dateBasis"],
+                    })
+                  }
+                >
+                  <option value="transactionDate">交易日期</option>
+                  <option value="postingDate">入账日期</option>
+                </select>
+              </label>
+              <label>
+                允许日期相差几天
+                <input
+                  type="number"
+                  min="0"
+                  max="31"
+                  value={settings.tolerance}
+                  onChange={(e) =>
+                    change({ tolerance: Number(e.target.value) })
+                  }
+                />
+                <small className="field-hint">
+                  银行入账常比实际消费晚一两天，填 1～2 天较常见；填 0
+                  表示必须同一天。
+                </small>
+              </label>
+            </div>
+            <label className="check">
               <input
-                type="number"
-                min="0"
-                max="31"
-                value={settings.tolerance}
-                onChange={(e) => change({ tolerance: Number(e.target.value) })}
+                type="checkbox"
+                checked={settings.confirmedExternalIds}
+                onChange={(e) =>
+                  change({ confirmedExternalIds: e.target.checked })
+                }
               />
-              <small className="field-hint">
-                银行入账常比实际消费晚一两天，填 1～2 天较常见；填 0
-                表示必须同一天。
-              </small>
+              我已核实两边的交易编号是同一套编号，优先按编号匹配（不确定就不要勾）
             </label>
-          </div>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={settings.confirmedExternalIds}
-              onChange={(e) =>
-                change({ confirmedExternalIds: e.target.checked })
-              }
-            />
-            我已核实两边的交易编号是同一套编号，优先按编号匹配（不确定就不要勾）
-          </label>
-          <p className="muted">
-            默认同日匹配；日期不同仅生成待确认关系。首末交易日不代表完整账期，请核实导出范围与中间缺页。
-          </p>
+            <p className="muted">
+              默认同日匹配；日期不同仅生成待确认关系。首末交易日不代表完整账期，请核实导出范围与中间缺页。
+            </p>
+          </details>
         </div>
       </div>
       <div className="run-footer">

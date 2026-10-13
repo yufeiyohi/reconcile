@@ -20,8 +20,11 @@ export function FileEditor({
 }) {
   const replaceInput = useRef<HTMLInputElement>(null);
   const accountInput = useRef<HTMLInputElement>(null);
+  const previewBox = useRef<HTMLDivElement>(null);
   const accountHintId = useId();
   const [options, setOptions] = useState(entry.options);
+  // Which row the five-row preview starts at; set when jumping to a bad row.
+  const [previewFrom, setPreviewFrom] = useState<number | null>(null);
   const missingAccount =
     options.mapping.account === undefined && !options.fixedAccount.trim();
   const suggestedAccount = (
@@ -35,6 +38,11 @@ export function FileEditor({
   const sheet = entry.file.sheets.find((s) => s.name === options.sheet)!;
   const headers = sheet.rows[options.headerRow - 1] || [];
   const set = (p: Partial<ImportOptions>) => setOptions({ ...options, ...p });
+  const previewStart = previewFrom ?? options.headerRow;
+  const showRow = (row: number) => {
+    setPreviewFrom(Math.max(0, row - 1));
+    previewBox.current?.scrollIntoView({ block: "center" });
+  };
   const dates =
     entry.result?.transactions
       .flatMap((t) => (t.transactionDate ? [t.transactionDate] : []))
@@ -78,6 +86,7 @@ export function FileEditor({
                 const s = entry.file.sheets.find(
                   (s) => s.name === e.target.value,
                 )!;
+                setPreviewFrom(null);
                 set({
                   sheet: s.name,
                   headerRow: detectHeader(s),
@@ -99,6 +108,7 @@ export function FileEditor({
               value={options.headerRow}
               onChange={(e) => {
                 const n = Number(e.target.value);
+                setPreviewFrom(null);
                 set({
                   headerRow: n,
                   mapping: suggestMapping(sheet.rows[n - 1] || []),
@@ -149,8 +159,21 @@ export function FileEditor({
             <small>同一来源有多个账户时，请分别填写名称。</small>
           </div>
         )}
-        <p className="eyebrow">原始预览 · 前 5 行 · 账号脱敏</p>
-        <div className="table-scroll preview">
+        <p className="eyebrow">
+          原始预览 · 5 行 · 账号脱敏
+          {previewFrom !== null && (
+            <span>
+              正在显示第 {previewStart + 1} 行附近
+              <button
+                className="text-button"
+                onClick={() => setPreviewFrom(null)}
+              >
+                回到表头下方
+              </button>
+            </span>
+          )}
+        </p>
+        <div className="table-scroll preview" ref={previewBox}>
           <table>
             <thead>
               <tr>
@@ -162,10 +185,15 @@ export function FileEditor({
             </thead>
             <tbody>
               {sheet.rows
-                .slice(options.headerRow, options.headerRow + 5)
+                .slice(previewStart, previewStart + 5)
                 .map((row, i) => (
-                  <tr key={i}>
-                    <td>{options.headerRow + i + 1}</td>
+                  <tr
+                    key={i}
+                    className={
+                      previewFrom !== null && i === 0 ? "preview-target" : ""
+                    }
+                  >
+                    <td>{previewStart + i + 1}</td>
                     {row.map((v, j) => (
                       <td key={j}>
                         {/账户|账号|卡号/.test(headers[j] || "")
@@ -302,6 +330,14 @@ export function FileEditor({
                 {entry.result.errors.slice(0, 100).map((e, i) => (
                   <p key={i}>
                     {e.sheetName || options.sheet} / 第 {e.row} 行：{e.message}
+                    {(e.sheetName || options.sheet) === options.sheet && (
+                      <button
+                        className="text-button"
+                        onClick={() => showRow(e.row)}
+                      >
+                        在预览中查看这一行
+                      </button>
+                    )}
                   </p>
                 ))}
               </div>

@@ -292,6 +292,58 @@ h1 span {
   background: none;
   text-decoration: underline;
 }
+.reading-guide {
+  margin: 18px 0;
+  padding: 14px 18px;
+  border: 1px solid #cfe3d4;
+  border-radius: 10px;
+  background: #f7fbf8;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.reading-guide summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #1f4d33;
+}
+.reading-guide ol {
+  margin: 10px 0 0;
+  padding-left: 20px;
+}
+.reading-guide p {
+  margin: 8px 0 0;
+}
+.status-help {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-left: 3px solid #1f6b3f;
+  border-radius: 0 8px 8px 0;
+  background: #f4faf5;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.status-help b {
+  margin-right: 8px;
+}
+.advanced-rules {
+  margin-top: 16px;
+  border-top: 1px solid #e3e9e4;
+  padding-top: 12px;
+}
+.advanced-rules summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: #42604d;
+  margin-bottom: 12px;
+}
+.preview-target td {
+  background: #fff6e8;
+}
+.preview .text-button,
+.error-box .text-button {
+  margin-left: 8px;
+  font-size: 11px;
+}
 .next-step {
   display: flex;
   align-items: center;
@@ -314,10 +366,12 @@ h1 span {
   font-size: 11px;
   letter-spacing: 1px;
 }
-.auto-hint {
-  grid-column: 1 / -1;
+.account-row .auto-hint {
+  flex-basis: 100%;
+  margin: 0 0 0 auto;
   color: #1f6b3f;
   font-size: 11px;
+  text-align: right;
 }
 .field-hint {
   display: block;
@@ -780,6 +834,7 @@ td > small {
 }
 .account-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 10px 0;

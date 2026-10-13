@@ -7,7 +7,7 @@ import type {
   ResultItem,
   Status,
 } from "../domain/reconciliation/types";
-import { statusLabels } from "../domain/reconciliation/types";
+import { statusLabels, statusHelp } from "../domain/reconciliation/types";
 import { summarize } from "../domain/reconciliation/engine";
 import {
   maskAccount,
@@ -244,6 +244,23 @@ export function ResultsPanel({
           </span>
         </div>
       </div>
+      <details className="reading-guide" open>
+        <summary>第一次看结果？三步就够</summary>
+        <ol>
+          <li>
+            看下面的「差异清单」：每一行是一组对不上的记录，左边是银行的、右边是随手记的。
+          </li>
+          <li>
+            点「查看详情」：会说明这是什么情况、该怎么办，并给出记录在第几个文件、第几行。
+          </li>
+          <li>
+            核实完在详情里标「已核实，无需修改」或「准备修订随手记」。这些标记只是你的备忘，不会改动金额和差额。
+          </li>
+        </ol>
+        <p className="muted">
+          所有结论都只是线索，需要你对照原始账单确认；网站不会自动修改随手记。
+        </p>
+      </details>
       {comparison && <div className="notice">{comparison}</div>}
       {changes.length > 0 && (
         <details className="notice">
@@ -470,6 +487,12 @@ export function ResultsPanel({
               ))}
             </select>
           </div>
+          {filter !== "all" && (
+            <p className="status-help">
+              <b>{statusLabels[filter as Status]}</b>
+              {statusHelp[filter as Status]}
+            </p>
+          )}
           <p className="muted">
             当前筛选：{rows.length} 组，{filteredIds.size} 条记录 · 银行支出{" "}
             {money(
@@ -485,12 +508,12 @@ export function ResultsPanel({
             <table>
               <thead>
                 <tr>
-                  <th>类别 / 账户</th>
+                  <th>这是什么情况 / 账户</th>
                   <th>银行记录</th>
-                  <th>随手记记录 / 候选</th>
-                  <th>净额差异</th>
-                  <th>处理状态</th>
-                  <th>追溯</th>
+                  <th>随手记记录（或可能对应的记录）</th>
+                  <th>金额差（银行 − 账本）</th>
+                  <th>你的处理</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -514,6 +537,7 @@ export function ResultsPanel({
                       <td>
                         <span
                           className={`pill ${success(item) ? "green" : "amber"}`}
+                          title={statusHelp[item.status]}
                         >
                           {statusLabels[item.status]}
                         </span>
@@ -583,9 +607,9 @@ export function ResultsPanel({
         </>
       )}
       <details className="manual-panel">
-        <summary>人工选择记录 · 一对一 / 拆分 / 合并</summary>
+        <summary>自己配对记录（一对一 / 一笔拆成多笔 / 多笔合成一笔）</summary>
         <p className="muted">
-          可在详情中逐条加入选择。人工匹配要求同账户、CNY、同方向且金额合计一致。当前选择银行{" "}
+          在详情里勾选要配对的记录，再回到这里确认。只有同一账户、同为人民币、同一方向、金额合计一致才能配对。当前已选银行{" "}
           {banks.length} 条、随手记 {ledger.length} 条。
         </p>
         <div className="manual-list">
@@ -620,6 +644,7 @@ export function ResultsPanel({
                 ✕
               </button>
             </div>
+            <p className="status-help">{statusHelp[detailItem.status]}</p>
             <p>{detailItem.reason}</p>
             <p className="muted">
               {maskAccount(detailItem.accountId)} ·{" "}
@@ -629,9 +654,17 @@ export function ResultsPanel({
               · 原始行号按表格逻辑行（CSV 多行单元格计为一行）
             </p>
             <h3>银行记录</h3>
-            {detailItem.bankIds.map((id) => selectTx(lookup.get(id)!))}
-            <h3>随手记记录 / 候选</h3>
-            {detailItem.ledgerIds.map((id) => selectTx(lookup.get(id)!))}
+            {detailItem.bankIds.length ? (
+              detailItem.bankIds.map((id) => selectTx(lookup.get(id)!))
+            ) : (
+              <p className="muted">银行账单里没有找到对应的记录。</p>
+            )}
+            <h3>随手记记录 / 可能对应的记录</h3>
+            {detailItem.ledgerIds.length ? (
+              detailItem.ledgerIds.map((id) => selectTx(lookup.get(id)!))
+            ) : (
+              <p className="muted">随手记里没有找到对应的记录。</p>
+            )}
             <div className="actions">
               <button
                 disabled={
