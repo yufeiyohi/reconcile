@@ -346,6 +346,36 @@ export function ImportPanel({
               </strong>
               <small>支持多文件 · 本地解析</small>
             </button>
+            {files.some((entry) => entry.source === adapter.id) && (
+              <ul
+                className="imported-files"
+                aria-label={`${adapter.displayName}已导入文件`}
+              >
+                {files
+                  .filter((entry) => entry.source === adapter.id)
+                  .map((entry) => (
+                    <li className="imported-file" key={entry.key}>
+                      <span className="imported-file-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 28" fill="none">
+                          <path d="M3 1h11l7 7v19H3z" />
+                          <path d="M14 1v7h7M7 14h10M7 19h10" />
+                        </svg>
+                        <small>
+                          {entry.file.name.split(".").pop()?.toUpperCase()}
+                        </small>
+                      </span>
+                      <div className="imported-file-info">
+                        <strong>{maskAccount(entry.file.name)}</strong>
+                        <small>
+                          {entry.result
+                            ? `已解析 · ${entry.result.transactions.length} 条有效${entry.result.errors.length ? ` · ${entry.result.errors.length} 条错误` : ""}`
+                            : "已载入 · 待确认字段映射"}
+                        </small>
+                      </div>
+                    </li>
+                  ))}
+              </ul>
+            )}
             <input
               hidden
               ref={(el) => {
