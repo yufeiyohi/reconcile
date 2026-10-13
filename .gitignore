@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env*
+!.env.example
+coverage/
+playwright-report/
+test-results/
+*.log
+*.db
+*.sqlite*
+uploads/
+local-data/
+real-statements/
+.DS_Store
+.local-validation/
+**/.private-*
