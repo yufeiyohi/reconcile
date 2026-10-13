@@ -371,6 +371,11 @@ export function BalancePanel({
               显示余额相等的日期
             </label>
           </div>
+          {bank[0]?.source === "wechat" && (
+            <p className="notice">
+              微信账单只核对零钱支出；零钱通、银行卡支付、收入及其他记录已忽略。筛选后的流水不能推算零钱余额，日终余额需自行核实填写。
+            </p>
+          )}
           <div className="balance-setup">
             <p>
               先输入随手记的起始余额。网站会计入这个账户每天的收入、支出和转账，计算日终余额；重点展开支出供你核对。

@@ -12,7 +12,7 @@ Results now default to one debit/payment account at a time, ordered oldest first
 
 ICBC and CMB debit statements supply running balances. The app validates ordering and balance continuity before selecting the daily closing balance. Equal closing balances for the same account are hidden by default (with a toggle to show them); offsetting detail discrepancies on equal days are not flagged. Unequal days highlight bank expenses alongside ledger amounts, counterparties, descriptions, and source rows. Income and transfers appear separately.
 
-The supplied WeChat statement has no balance column. Missing or uncertain balances require a manually verified daily closing balance; equal daily cash flow alone never establishes equal account balances. Credit card matching is unchanged under “信用卡与逐笔核对”. The existing CSV report still exports transaction-level results, not the new daily balance inputs/results. All new inputs remain in memory only.
+WeChat imports retain only rows whose payment method is exactly “零钱” and whose direction is expenditure. Lingqiantong, card payments, income, and other rows are ignored before parsing; original row numbers and filter counts remain available. A missing payment-method column requires explicit mapping. The supplied WeChat statement has no balance column, and expense-only rows cannot determine or carry forward daily wallet balances. Missing or uncertain balances require a manually verified daily closing balance; equal daily cash flow alone never establishes equal account balances. Credit card matching is unchanged under “信用卡与逐笔核对”. The existing CSV report still exports transaction-level results, not the new daily balance inputs/results. All new inputs remain in memory only.
 
 ## Run locally
 
@@ -84,12 +84,12 @@ Manual intervention is needed only when automatic detection is insufficient, suc
 | Suishouji XLS | Expenditure, income, and transfer sheets validated against supplied samples |
 | ICBC CSV | Sample structure validated; uses **posted amount / posted currency** and excludes trailing summary rows |
 | China Merchants Bank debit card CSV | Sample structure validated; supports YYYYMMDD dates and separate income / expenditure columns |
-| WeChat Pay XLSX | Sample structure validated; transaction direction takes precedence over transaction type, and refunds remain separate from original transactions |
+| WeChat Pay XLSX | Sample structure validated; only 零钱 expenses are retained; card payments, Lingqiantong, income and other rows are ignored |
 | China Merchants Bank credit card PDF | **Text-based CNY transaction tables only**; sample structure validated, with cross-year dates, posting-date-only records, and page / line tracing |
 
 Support for XLS, text-based PDF, and WeChat Pay was added with user authorization after the initial requirements. **Support for every official export version is not claimed; other official templates have not been validated.** Unrecognized spreadsheet templates can use generic field mapping. Unsupported PDF layouts, scanned documents, images, encrypted files, formulas, macros, and external workbook links are rejected. XLS must be a genuine BIFF file, not HTML disguised as a spreadsheet.
 
-Some credit-card repayments provide only a posting date; their transaction date remains empty. If you select posting dates as the common date basis, other files must also provide posting dates—there is no automatic fallback to transaction dates. Transfers, credit-card installments, and repayment classifications are not inferred automatically. WeChat rows such as “不计收支” (Neither income nor expenditure), whose direction cannot be determined, are listed as errors.
+Some credit-card repayments provide only a posting date; their transaction date remains empty. If you select posting dates as the common date basis, other files must also provide posting dates—there is no automatic fallback to transaction dates. Transfers, credit-card installments, and repayment classifications are not inferred automatically. WeChat rows outside the change-expense scope are ignored rather than reported as parse errors. Original expense rows retain their transaction status, including refunded expenses.
 
 Amounts are stored as decimal strings in cents, with BigInt used for aggregation and comparison. Precision already lost in an Excel source file cannot be recovered. Input amounts may have at most two decimal places. Recognized non-CNY currencies are retained but are not reconciled automatically.
 

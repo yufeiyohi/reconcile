@@ -253,7 +253,7 @@ test("missing statement account is explained beside the fields and parse button"
       name: `人工构造-${source}.csv`,
       mimeType: "text/csv",
       buffer: Buffer.from(
-        `日期,方向,金额,摘要,币种\n2026-01-01,支出,10,人工构造${source},CNY`,
+        `日期,方向,金额,摘要,币种,支付方式\n2026-01-01,支出,10,人工构造${source},CNY,零钱`,
       ),
     });
     const entry = page

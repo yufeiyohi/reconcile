@@ -121,6 +121,45 @@ test("XLS multi-sheet ledger and XLSX custom header row work in real workers", a
         "SYN-M001",
         "不是真实账单",
       ],
+      [
+        "2026-01-01 11:00",
+        "商户消费",
+        "合成商户",
+        "银行卡消费",
+        "支出",
+        20,
+        "招商银行储蓄卡",
+        "支付成功",
+        "SYN-002",
+        "SYN-M002",
+        "人工构造",
+      ],
+      [
+        "2026-01-01 12:00",
+        "转账",
+        "合成商户",
+        "零钱收入",
+        "收入",
+        30,
+        "零钱",
+        "已到账",
+        "SYN-003",
+        "SYN-M003",
+        "人工构造",
+      ],
+      [
+        "2026-01-01 13:00",
+        "商户消费",
+        "合成商户",
+        "零钱通消费",
+        "支出",
+        40,
+        "零钱通",
+        "支付成功",
+        "SYN-004",
+        "SYN-M004",
+        "人工构造",
+      ],
     ]),
     "合成",
   );
@@ -135,6 +174,9 @@ test("XLS multi-sheet ledger and XLSX custom header row work in real workers", a
   await editor.getByLabel("这个文件属于哪个账户").fill("微支付");
   await editor.getByRole("button", { name: "确认映射并解析" }).click();
   await expect(page.getByRole("status")).toContainText("1 条有效，0 条错误");
+  await expect(page.locator(".source-wechat")).toContainText(
+    "保留 1 行零钱支出，忽略 3 行其他记录",
+  );
   await page
     .getByLabel("映射账户-微支付", { exact: true })
     .selectOption("wechat:微支付");

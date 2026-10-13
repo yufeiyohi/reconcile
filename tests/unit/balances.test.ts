@@ -290,3 +290,19 @@ it("keeps a possible bank transfer out of missing-expense suggestions", () => {
     ledger = [tx("2026-01-01", "20000", undefined, { isTransfer: true })];
   expect(expenseClues(bank, ledger)[0].kind).toBe("transfer");
 });
+
+it("does not derive wallet balances from expense-only WeChat rows or carry them across omitted flows", () => {
+  const bank = [
+    tx("2026-01-01", "100", "10000", { source: "wechat" }),
+    tx("2026-01-03", "100", "9900", { source: "wechat" }),
+  ];
+  const days = balanceDays(
+    bank,
+    [],
+    { ...input, bankClosing: { "2026-01-01": "1000" } },
+    "2026-01-03",
+  );
+  expect(days[0].state).toBe("equal");
+  expect(days[1].bankClosing).toBeUndefined();
+  expect(days[2].bankClosing).toBeUndefined();
+});

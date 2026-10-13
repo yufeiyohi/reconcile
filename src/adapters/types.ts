@@ -18,6 +18,7 @@ export type Field =
   | "direction"
   | "amount"
   | "balance"
+  | "paymentMethod"
   | "income"
   | "expense"
   | "account"
@@ -55,6 +56,7 @@ export const fieldLabels: Record<Field, string> = {
   direction: "收支方向",
   amount: "金额",
   balance: "交易后余额（非交易金额）",
+  paymentMethod: "支付方式（微信零钱筛选）",
   income: "独立收入金额",
   expense: "独立支出金额",
   account: "账户名称 / 账号",

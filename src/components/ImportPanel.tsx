@@ -423,7 +423,7 @@ export function ImportPanel({
                   {index === 0
                     ? "多账户记账记录"
                     : adapter.id === "wechat"
-                      ? "支付渠道 · 单独核对"
+                      ? "只核对零钱支出"
                       : "银行原始交易记录"}
                 </small>
               </div>
@@ -469,6 +469,13 @@ export function ImportPanel({
                               ? `已解析 · ${entry.result.transactions.length} 条有效${entry.result.errors.length ? ` · ${entry.result.errors.length} 条错误` : ""}`
                               : "已载入 · 待确认字段映射"}
                         </small>
+                        {entry.source === "wechat" && entry.result && (
+                          <small>
+                            {entry.result.warnings.find((w) =>
+                              w.startsWith("微信筛选："),
+                            )}
+                          </small>
+                        )}
                       </div>
                     </li>
                   ))}

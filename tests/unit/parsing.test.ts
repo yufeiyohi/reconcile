@@ -223,3 +223,54 @@ describe("CSV 编码自动识别", () => {
     expect(file.warnings.some((w) => w.includes("GB18030"))).toBe(true);
   });
 });
+
+describe("WeChat change-only expenses", () => {
+  it("keeps only exact 零钱 expenses and preserves source row numbers", async () => {
+    const file = await readFileData(
+      "synthetic-wechat.csv",
+      encode(
+        "交易时间,收/支,金额(元),支付方式,交易单号,当前状态\n2026-01-01,支出,10,零钱,SYN-1,支付成功\ninvalid,支出,invalid,工商银行储蓄卡,SYN-2,支付成功\n2026-01-02,收入,5,零钱,SYN-3,已到账\n2026-01-02,支出,20,零钱通,SYN-4,支付成功\n2026-01-03,不计收支,30,零钱,SYN-5,已退款\n2026-01-03,支出,7,零钱,SYN-6,已全额退款\n2026-01-04,支出,9,零钱+银行卡,SYN-7,支付成功",
+      ),
+    );
+    const options = {
+      ...initialOptions("wechat", file),
+      fixedAccount: "微支付",
+    };
+    const result = adapterRegistry.get("wechat")!.parse(file, options);
+    expect(result.errors).toEqual([]);
+    expect(result.transactions.map((t) => t.amountMinor)).toEqual([
+      "1000",
+      "700",
+    ]);
+    expect(result.transactions.map((t) => t.originalRowNumber)).toEqual([2, 7]);
+    expect(result.warnings.join(" ")).toContain(
+      "保留 2 行零钱支出，忽略 5 行其他记录",
+    );
+    expect(file.sheets[0].rows[2][0]).toBe("invalid");
+  });
+  it("requires payment method mapping and does not silently import unknown payment sources", async () => {
+    const file = await readFileData(
+      "synthetic.csv",
+      encode("日期,方向,金额,账户\n2026-01-01,支出,10,微支付"),
+    );
+    expect(() =>
+      adapterRegistry
+        .get("wechat")!
+        .parse(file, initialOptions("wechat", file)),
+    ).toThrow("支付方式");
+  });
+  it("returns no transactions when every row is outside the requested scope", async () => {
+    const file = await readFileData(
+      "synthetic.csv",
+      encode(
+        "日期,方向,金额,账户,支付方式\n2026-01-01,收入,10,微支付,零钱\n2026-01-02,支出,20,微支付,零钱通",
+      ),
+    );
+    const result = adapterRegistry
+      .get("wechat")!
+      .parse(file, initialOptions("wechat", file));
+    expect(result.transactions).toEqual([]);
+    expect(result.errors).toEqual([]);
+    expect(result.warnings.join(" ")).toContain("没有符合条件的零钱支出");
+  });
+});

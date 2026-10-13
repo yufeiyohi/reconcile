@@ -19,6 +19,7 @@ export function suggestMapping(headers: string[]): FieldMapping {
     direction: ["收支方向", "收支类型", "方向", "收/支", "类型", "交易类型"],
     amount: ["金额", "交易金额", "金额(元)"],
     balance: ["余额", "账户余额", "交易后余额", "余额(元)"],
+    paymentMethod: ["支付方式"],
     income: ["收入", "收入金额", "贷方金额", "记账金额(收入)"],
     expense: ["支出", "支出金额", "借方金额", "记账金额(支出)"],
     account: ["账户", "账户名称", "账号", "银行卡号", "支出账户", "收入账户"],

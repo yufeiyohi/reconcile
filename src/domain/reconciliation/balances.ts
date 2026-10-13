@@ -129,7 +129,8 @@ export function balanceDays(
     /* visible input error */
   }
   const cny = bank.filter((t) => t.currency === "CNY");
-  const closings = statementClosings(cny);
+  const expenseOnly = bank.some((t) => t.source === "wechat");
+  const closings = statementClosings(expenseOnly ? [] : cny);
   const bankDates = cny
     .flatMap((t) => (t.transactionDate ? [t.transactionDate] : []))
     .sort();
@@ -176,7 +177,12 @@ export function balanceDays(
     const inBankRange =
       !!bankDates.length && date >= bankDates[0] && date <= bankDates.at(-1)!;
     if (!bankByDay.has(date))
-      bankClosing = inBankRange && input.complete ? previousBank : undefined;
+      bankClosing =
+        inBankRange && input.complete && !expenseOnly
+          ? previousBank
+          : undefined;
+    if (expenseOnly)
+      bankBasis = "微信仅保留零钱支出，请填写核实后的完整日终余额";
     if (input.bankClosing[date]?.trim()) {
       try {
         bankClosing = signedMoney(input.bankClosing[date]);

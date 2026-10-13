@@ -107,7 +107,7 @@ test("missing payment balance stays unknown until a verified daily balance is su
   await upload(
     page,
     "微信支付",
-    "日期,方向,金额,账户,摘要,币种\n2026-01-01,支出,10,微支付,人工构造微信,CNY",
+    "日期,方向,金额,账户,摘要,币种,支付方式\n2026-01-01,支出,10,微支付,人工构造微信,CNY,零钱",
   );
   await page.getByRole("button", { name: "开始对账" }).click();
   await page.getByLabel("随手记期初余额", { exact: true }).fill("100");
