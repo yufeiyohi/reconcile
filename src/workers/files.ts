@@ -73,10 +73,61 @@ export function inspectXlsx(bytes: Uint8Array): void {
   if (!names.has("xl/workbook.xml") || !names.has("[Content_Types].xml"))
     throw new Error("无效 XLSX 工作簿");
 }
+/** Pick the text encoding for a CSV so beginners do not have to know theirs. */
+export function decodeCsv(
+  buffer: ArrayBuffer,
+  encoding = "auto",
+): { decoded: string; warning?: string } {
+  const bytes = new Uint8Array(buffer);
+  const tryDecode = (label: string) => {
+    try {
+      const decoded = new TextDecoder(label, { fatal: true }).decode(buffer);
+      // A UTF-16 file decodes as valid UTF-8 full of NUL bytes; reject that.
+      return decoded.includes("\u0000") ? null : decoded;
+    } catch {
+      return null;
+    }
+  };
+  if (encoding !== "auto") {
+    const decoded = tryDecode(encoding);
+    if (decoded === null)
+      throw new Error(
+        "按所选编码读取失败，请把“CSV 编码”改回“自动识别”，或将文件另存为 UTF-8 CSV",
+      );
+    return { decoded };
+  }
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) {
+    const decoded = tryDecode("utf-16le");
+    if (decoded !== null)
+      return { decoded, warning: encodingNote("UTF-16 LE") };
+  }
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) {
+    const decoded = tryDecode("utf-16be");
+    if (decoded !== null)
+      return { decoded, warning: encodingNote("UTF-16 BE") };
+  }
+  for (const [label, name] of [
+    ["utf-8", "UTF-8"],
+    ["gb18030", "GB18030 / GBK（中文 Windows 常用）"],
+    ["utf-16le", "UTF-16 LE"],
+  ]) {
+    const decoded = tryDecode(label);
+    if (decoded !== null)
+      return {
+        decoded,
+        warning: label === "utf-8" ? undefined : encodingNote(name),
+      };
+  }
+  throw new Error(
+    "文本编码无法识别，请在“CSV 编码”里手动选择 GB18030，或将文件另存为 UTF-8 CSV",
+  );
+}
+const encodingNote = (name: string) =>
+  `已自动按 ${name} 编码读取此 CSV；若预览出现乱码，请在“CSV 编码”里手动选择后重新导入。`;
 export async function readFileData(
   name: string,
   buffer: ArrayBuffer,
-  encoding = "utf-8",
+  encoding = "auto",
 ): Promise<ParsedFile> {
   if (buffer.byteLength > MAX_FILE_SIZE)
     throw new Error("文件超过 10 MB，请分段导出");
@@ -93,14 +144,9 @@ export async function readFileData(
   let sheets: ParsedSheet[];
   let extraWarnings: string[] = [];
   if (ext === "csv") {
-    let decoded: string;
-    try {
-      decoded = new TextDecoder(encoding, { fatal: true }).decode(buffer);
-    } catch {
-      throw new Error(
-        "文本编码无法识别，请选择 GB18030 或将文件另存为 UTF-8 CSV",
-      );
-    }
+    const text = decodeCsv(buffer, encoding);
+    const decoded = text.decoded;
+    if (text.warning) extraWarnings.push(text.warning);
     const parsed = Papa.parse<string[]>(decoded, {
       skipEmptyLines: false,
       dynamicTyping: false,

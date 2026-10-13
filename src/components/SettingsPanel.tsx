@@ -1,20 +1,21 @@
 import type { Transaction } from "../domain/transactions/types";
 import { maskAccount, sourceNames } from "../domain/transactions/types";
 import { accountKey, type Settings } from "../domain/reconciliation/types";
+import { suggestAccountMappings } from "../domain/reconciliation/suggest";
 export function SettingsPanel({
   transactions,
   settings,
   onChange,
   onRun,
   busy,
-  canRun,
+  blockers,
 }: {
   transactions: Transaction[];
   settings: Settings;
   onChange: (s: Settings) => void;
   onRun: () => void;
   busy: boolean;
-  canRun: boolean;
+  blockers: string[];
 }) {
   const bankAccounts = [
     ...new Map(
@@ -31,6 +32,10 @@ export function SettingsPanel({
     ).entries(),
   ];
   const change = (p: Partial<Settings>) => onChange({ ...settings, ...p });
+  const suggested = suggestAccountMappings(transactions);
+  const linked = ledgerAccounts.filter(
+    ([key]) => settings.mappings[key],
+  ).length;
   return (
     <section className="panel" id="settings">
       <div className="section-heading">
@@ -43,7 +48,9 @@ export function SettingsPanel({
       <div className="settings-layout">
         <div className="account-mapping">
           <h3>关联账户</h3>
-          <p className="muted">将随手记账户对应到实际银行账户。</p>
+          <p className="muted">
+            告诉网站：随手记里的某个账户，对应哪一份银行账单。名称能对上的已自动选好，请核对；用不到的账户保持“未纳入本次对账”即可。
+          </p>
           {ledgerAccounts.length === 0 ? (
             <div className="empty-small">确认文件字段后，账户会显示在这里</div>
           ) : (
@@ -71,8 +78,17 @@ export function SettingsPanel({
                     </option>
                   ))}
                 </select>
+                {settings.mappings[key] &&
+                  settings.mappings[key] === suggested[key] && (
+                    <small className="auto-hint">已自动关联 · 请核对</small>
+                  )}
               </label>
             ))
+          )}
+          {ledgerAccounts.length > 0 && linked === 0 && (
+            <p className="warning-box">
+              还没有关联任何账户，这样对账结果会全部显示“未纳入本次对账”。请至少关联一个。
+            </p>
           )}
           {bankAccounts.length > 0 && (
             <div className="selected-accounts">
@@ -99,6 +115,9 @@ export function SettingsPanel({
         </div>
         <div className="rule-settings">
           <h3>共同对账期间</h3>
+          <p className="muted">
+            默认取已导入文件的首尾日期。两边都有记录的时间段，结果才可信。
+          </p>
           <div className="date-range">
             <label>
               开始日期
@@ -122,7 +141,7 @@ export function SettingsPanel({
           </div>
           <div className="form-grid">
             <label>
-              日期口径
+              按哪个日期比对
               <select
                 value={settings.dateBasis}
                 onChange={(e) =>
@@ -134,7 +153,7 @@ export function SettingsPanel({
               </select>
             </label>
             <label>
-              日期容差（天）
+              允许日期相差几天
               <input
                 type="number"
                 min="0"
@@ -142,6 +161,10 @@ export function SettingsPanel({
                 value={settings.tolerance}
                 onChange={(e) => change({ tolerance: Number(e.target.value) })}
               />
+              <small className="field-hint">
+                银行入账常比实际消费晚一两天，填 1～2 天较常见；填 0
+                表示必须同一天。
+              </small>
             </label>
           </div>
           <label className="check">
@@ -152,7 +175,7 @@ export function SettingsPanel({
                 change({ confirmedExternalIds: e.target.checked })
               }
             />
-            已核实两侧交易编号含义一致，优先按编号匹配
+            我已核实两边的交易编号是同一套编号，优先按编号匹配（不确定就不要勾）
           </label>
           <p className="muted">
             默认同日匹配；日期不同仅生成待确认关系。首末交易日不代表完整账期，请核实导出范围与中间缺页。
@@ -160,16 +183,17 @@ export function SettingsPanel({
         </div>
       </div>
       <div className="run-footer">
-        <span>{transactions.length} 条有效记录 · 不以总额相等代替逐笔核对</span>
+        <span>
+          {transactions.length} 条有效记录 · 不以总额相等代替逐笔核对
+          {blockers.length > 0 && (
+            <small className="blockers">
+              还差 {blockers.length} 步才能开始：{blockers.join("；")}
+            </small>
+          )}
+        </span>
         <button
           className="primary"
-          disabled={
-            busy ||
-            !canRun ||
-            !settings.accountIds.length ||
-            !settings.start ||
-            !settings.end
-          }
+          disabled={busy || blockers.length > 0}
           onClick={onRun}
         >
           {busy ? "正在本地处理…" : "开始对账"} <span>→</span>

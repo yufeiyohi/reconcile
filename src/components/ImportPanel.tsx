@@ -55,8 +55,8 @@ export function FileEditor({
         {!entry.result && (
           <p className={missingAccount ? "warning-box" : "subtle-note"}>
             {missingAccount
-              ? "还需指定本文件的账户：账单中没有识别到账户列，请填写下方账户名称，再点击“确认映射并解析”。"
-              : "请核对下方预览和已选字段；确认无误后直接点击“确认映射并解析”，不需要逐个更改下拉框。"}
+              ? "还需指定本文件的账户：账单里没有账户列，请填写下方“这个文件属于哪个账户”，再点击“确认映射并解析”。"
+              : "字段已自动识别。核对下方预览无误后，点击“确认映射并解析”即可；不需要逐个改下拉框。"}
           </p>
         )}
         {entry.source === "suishouji" && entry.file.sheets.length > 1 && (
@@ -91,7 +91,7 @@ export function FileEditor({
             </select>
           </label>
           <label>
-            表头行号
+            表头在第几行
             <input
               type="number"
               min="1"
@@ -107,10 +107,10 @@ export function FileEditor({
             />
           </label>
           <label>
-            文件指定账户（列为空时）
+            这个文件属于哪个账户
             <input
               ref={accountInput}
-              aria-label="文件指定账户（列为空时）"
+              aria-label="这个文件属于哪个账户"
               aria-invalid={missingAccount}
               aria-describedby={missingAccount ? accountHintId : undefined}
               value={options.fixedAccount}
@@ -119,12 +119,12 @@ export function FileEditor({
             />
             {missingAccount && (
               <small id={accountHintId} className="required-hint">
-                必填：可填写随手记中的对应账户名称
+                必填：填随手记里对应的账户名称，两边名字一致最省事
               </small>
             )}
           </label>
           <label>
-            未映射币种时默认
+            没有币种列时按什么币种
             <select
               value={options.defaultCurrency}
               onChange={(e) => set({ defaultCurrency: e.target.value })}
@@ -183,7 +183,7 @@ export function FileEditor({
           </table>
         </div>
         <p className="eyebrow">
-          确认字段映射 <span>请核对模板建议；未识别结构使用手动映射</span>
+          字段对应关系 <span>已自动识别；只有对不上时才需要改</span>
         </p>
         <div className="mapping-grid">
           {Object.entries(fieldLabels).map(([field, label]) => (
@@ -215,7 +215,7 @@ export function FileEditor({
             checked={options.signedAmount}
             onChange={(e) => set({ signedAmount: e.target.checked })}
           />
-          我确认金额列以正数表示收入、负数表示支出（无方向列时使用）
+          这份账单用正数表示收入、负数表示支出（账单没有“收/支”列时才勾）
         </label>
         <>
           {JSON.stringify(options) !== JSON.stringify(entry.options) && (
@@ -338,7 +338,7 @@ export function ImportPanel({
   onRemove: (key: string) => void;
 }) {
   const [append, setAppend] = useState(false),
-    [encoding, setEncoding] = useState("utf-8");
+    [encoding, setEncoding] = useState("auto");
   const refs = useRef<Record<string, HTMLInputElement | null>>({});
   return (
     <section id="imports" className="panel">
@@ -352,7 +352,7 @@ export function ImportPanel({
         </span>
       </div>
       <p className="section-description">
-        各个来源分别导入。先预览字段，再确认解析；所有文件只在当前浏览器内处理。
+        按来源分别上传文件，导入后会自动识别字段并解析；只有识别不出来的文件才需要你动手。所有文件只在当前浏览器内处理。
       </p>
       <div className="import-grid">
         {[...adapterRegistry.values()].map((adapter, index) => (
@@ -467,7 +467,7 @@ export function ImportPanel({
             checked={append}
             onChange={(e) => setAppend(e.target.checked)}
           />
-          随手记追加文件（默认替换旧版，单次仍可多选）
+          再次导入随手记时，保留之前已导入的随手记文件（默认替换成新文件）
         </label>
         <label className="inline-label">
           CSV 编码
@@ -475,6 +475,7 @@ export function ImportPanel({
             value={encoding}
             onChange={(e) => setEncoding(e.target.value)}
           >
+            <option value="auto">自动识别（推荐）</option>
             <option value="utf-8">UTF-8</option>
             <option value="gb18030">GB18030 / GBK</option>
             <option value="utf-16le">UTF-16 LE</option>

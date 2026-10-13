@@ -64,14 +64,11 @@ test("XLS multi-sheet ledger and XLSX custom header row work in real workers", a
     "转账",
   );
   await page.goto("./");
-  await page
-    .getByLabel("上传随手记", { exact: true })
-    .setInputFiles({
-      name: "人工构造-多工作表.xls",
-      mimeType: "application/vnd.ms-excel",
-      buffer: XLS.write(book, { type: "buffer", bookType: "biff8" }),
-    });
-  await page.getByRole("button", { name: "确认映射并解析" }).click();
+  await page.getByLabel("上传随手记", { exact: true }).setInputFiles({
+    name: "人工构造-多工作表.xls",
+    mimeType: "application/vnd.ms-excel",
+    buffer: XLS.write(book, { type: "buffer", bookType: "biff8" }),
+  });
   await expect(page.getByRole("status")).toContainText("3 条有效，0 条错误");
   const wx = XLS.utils.book_new();
   XLS.utils.book_append_sheet(
@@ -108,17 +105,15 @@ test("XLS multi-sheet ledger and XLSX custom header row work in real workers", a
     ]),
     "合成",
   );
-  await page
-    .getByLabel("上传微信支付", { exact: true })
-    .setInputFiles({
-      name: "人工构造-微信.xlsx",
-      mimeType:
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      buffer: XLS.write(wx, { type: "buffer", bookType: "xlsx" }),
-    });
+  await page.getByLabel("上传微信支付", { exact: true }).setInputFiles({
+    name: "人工构造-微信.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: XLS.write(wx, { type: "buffer", bookType: "xlsx" }),
+  });
   await expect(page.locator(".file-editor")).toHaveCount(2);
   const editor = page.locator(".source-file").last();
-  await editor.getByLabel("文件指定账户（列为空时）").fill("微支付");
+  await editor.getByLabel("这个文件属于哪个账户").fill("微支付");
   await editor.getByRole("button", { name: "确认映射并解析" }).click();
   await expect(page.getByRole("status")).toContainText("1 条有效，0 条错误");
   await page
@@ -136,15 +131,12 @@ test("supported text PDF is extracted locally; scan-only PDF is rejected", async
   const pdf = await pdfPage.pdf();
   await pdfPage.close();
   await page.goto("./");
-  await page
-    .getByLabel("上传招行信用卡", { exact: true })
-    .setInputFiles({
-      name: "人工构造-信用卡.pdf",
-      mimeType: "application/pdf",
-      buffer: pdf,
-    });
+  await page.getByLabel("上传招行信用卡", { exact: true }).setInputFiles({
+    name: "人工构造-信用卡.pdf",
+    mimeType: "application/pdf",
+    buffer: pdf,
+  });
   await expect(page.locator(".file-editor")).toHaveCount(1, { timeout: 35000 });
-  await page.getByRole("button", { name: "确认映射并解析" }).click();
   await expect(page.getByRole("status")).toContainText("2 条有效，0 条错误");
   await expect(page.locator(".import-details")).toContainText(
     "交易日期保持为空",
@@ -155,13 +147,11 @@ test("supported text PDF is extracted locally; scan-only PDF is rejected", async
   );
   const scan = await scanPage.pdf();
   await scanPage.close();
-  await page
-    .getByLabel("上传招行信用卡", { exact: true })
-    .setInputFiles({
-      name: "人工构造-扫描件.pdf",
-      mimeType: "application/pdf",
-      buffer: scan,
-    });
+  await page.getByLabel("上传招行信用卡", { exact: true }).setInputFiles({
+    name: "人工构造-扫描件.pdf",
+    mimeType: "application/pdf",
+    buffer: scan,
+  });
   await expect(page.getByRole("alert")).toContainText("扫描件");
   await expect(page.locator(".file-editor")).toHaveCount(1);
 });

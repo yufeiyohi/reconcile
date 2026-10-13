@@ -4,7 +4,7 @@ import {
   parseAmount,
   parseDate,
 } from "../../src/domain/transactions/normalize";
-import { readFileData, inspectXlsx } from "../../src/workers/files";
+import { readFileData, inspectXlsx, decodeCsv } from "../../src/workers/files";
 import {
   createGenericAdapter,
   suggestMapping,
@@ -171,5 +171,55 @@ describe("exact normalization and safe import", () => {
         { text: "01/03 damaged row", page: 1, line: 7 },
       ]),
     ).toThrow(/无法识别/);
+  });
+});
+describe("CSV 编码自动识别", () => {
+  const gb = (text: string) => {
+    // Minimal GB18030 encoder for the few characters this test needs.
+    const table: Record<string, number[]> = {
+      日: [0xc8, 0xd5],
+      期: [0xc6, 0xda],
+      金: [0xbd, 0xf0],
+      额: [0xb6, 0xee],
+    };
+    const bytes: number[] = [];
+    for (const c of text)
+      c.charCodeAt(0) < 128
+        ? bytes.push(c.charCodeAt(0))
+        : bytes.push(...table[c]);
+    return new Uint8Array(bytes).buffer;
+  };
+  it("UTF-8 文件无需用户选择编码", () => {
+    const { decoded, warning } = decodeCsv(
+      new TextEncoder().encode("日期,金额").buffer as ArrayBuffer,
+    );
+    expect(decoded).toBe("日期,金额");
+    expect(warning).toBeUndefined();
+  });
+  it("GB18030 文件自动识别并提示", () => {
+    const { decoded, warning } = decodeCsv(gb("日期,金额"));
+    expect(decoded).toBe("日期,金额");
+    expect(warning).toContain("GB18030");
+  });
+  it("带 BOM 的 UTF-16 LE 文件不会被当成 UTF-8", () => {
+    const text = "日期,金额";
+    const bytes = new Uint8Array(2 + text.length * 2);
+    bytes[0] = 0xff;
+    bytes[1] = 0xfe;
+    for (let i = 0; i < text.length; i++) {
+      bytes[2 + i * 2] = text.charCodeAt(i) & 0xff;
+      bytes[3 + i * 2] = text.charCodeAt(i) >> 8;
+    }
+    const { decoded, warning } = decodeCsv(bytes.buffer);
+    expect(decoded).toBe(text);
+    expect(warning).toContain("UTF-16");
+  });
+  it("手动选错编码时给出可操作的提示", () => {
+    expect(() => decodeCsv(gb("日期,金额"), "utf-8")).toThrow("自动识别");
+  });
+  it("自动识别的 GB18030 CSV 可以直接导入", async () => {
+    const file = await readFileData("人工构造.csv", gb("日期,金额"));
+    expect(file.sheets[0].rows[0]).toEqual(["日期", "金额"]);
+    expect(file.warnings.some((w) => w.includes("GB18030"))).toBe(true);
   });
 });

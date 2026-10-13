@@ -6,6 +6,7 @@ import {
 } from "../../src/domain/reconciliation/engine";
 import type { Transaction } from "../../src/domain/transactions/types";
 import type { Settings } from "../../src/domain/reconciliation/types";
+import { suggestAccountMappings } from "../../src/domain/reconciliation/suggest";
 const tx = (
   id: string,
   source = "icbc",
@@ -258,4 +259,42 @@ it("compares reimported content without claiming stable file IDs", () => {
   expect(
     compareDifferences(before, corrected).filter((c) => c.kind === "resolved"),
   ).toHaveLength(2);
+});
+describe("账户自动关联建议", () => {
+  const ledger = (name: string) =>
+    tx(name, "suishouji", { accountName: name, accountId: name });
+  const bank = (source: string, name: string) =>
+    tx(name, source, { accountName: name, accountId: name });
+  it("按名称关键词匹配唯一的来源账户", () => {
+    const result = suggestAccountMappings([
+      ledger("工商银行"),
+      ledger("招商活期"),
+      ledger("招行信用卡(RMB)"),
+      ledger("微支付"),
+      ledger("现金"),
+      bank("icbc", "工行尾号1234"),
+      bank("cmb", "招行尾号5678"),
+      bank("cmb-credit", "招行信用卡尾号9012"),
+      bank("wechat", "微信支付"),
+    ]);
+    expect(result).toEqual({
+      "suishouji:工商银行": "icbc:工行尾号1234",
+      "suishouji:招商活期": "cmb:招行尾号5678",
+      "suishouji:招行信用卡(RMB)": "cmb-credit:招行信用卡尾号9012",
+      "suishouji:微支付": "wechat:微信支付",
+    });
+  });
+  it("同一来源有多个账户时不猜测，已有选择不被覆盖", () => {
+    const result = suggestAccountMappings(
+      [
+        ledger("工商银行"),
+        ledger("招商活期"),
+        bank("icbc", "工行A"),
+        bank("icbc", "工行B"),
+        bank("cmb", "招行尾号5678"),
+      ],
+      { "suishouji:招商活期": "" },
+    );
+    expect(result).toEqual({ "suishouji:招商活期": "" });
+  });
 });

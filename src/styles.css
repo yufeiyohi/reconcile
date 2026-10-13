@@ -292,6 +292,47 @@ h1 span {
   background: none;
   text-decoration: underline;
 }
+.next-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 1180px;
+  margin: 22px auto 0;
+  padding: 12px 18px;
+  border: 1px solid #cfe3d4;
+  border-radius: 10px;
+  background: #f4faf5;
+  color: #22402c;
+  font-size: 14px;
+}
+.next-step b {
+  flex: none;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #1f6b3f;
+  color: #fff;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+.auto-hint {
+  grid-column: 1 / -1;
+  color: #1f6b3f;
+  font-size: 11px;
+}
+.field-hint {
+  display: block;
+  margin-top: 4px;
+  color: #6c7a70;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.blockers {
+  display: block;
+  margin-top: 6px;
+  color: #a54b26;
+  font-size: 12px;
+  line-height: 1.6;
+}
 .workflow {
   display: flex;
   justify-content: center;

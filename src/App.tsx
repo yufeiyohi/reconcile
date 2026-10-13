@@ -14,6 +14,7 @@ import {
   type Settings,
 } from "./domain/reconciliation/types";
 import { validateManual } from "./domain/reconciliation/engine";
+import { suggestAccountMappings } from "./domain/reconciliation/suggest";
 import type { ParseResult } from "./domain/transactions/types";
 import { workerTask, cancelAllWorkers } from "./workers/client";
 import { MAX_FILES, MAX_FILE_SIZE, MAX_TOTAL_ROWS } from "./workers/limits";
@@ -89,6 +90,8 @@ export default function App() {
     const addedKeys = keys.filter((a) => !knownAccounts.current.includes(a));
     setSettings((s) => ({
       ...s,
+      // Suggested links are pre-filled; a choice the user already made stays.
+      mappings: suggestAccountMappings(transactions, s.mappings),
       accountIds: [
         ...s.accountIds.filter((a) => keys.includes(a)),
         ...addedKeys.filter((a) => !s.accountIds.includes(a)),
@@ -190,13 +193,46 @@ export default function App() {
         ) > MAX_TOTAL_ROWS
       )
         throw new Error("本次总行数超过 50,000，请缩小范围");
+      // Parse straight away with the detected fields: a beginner only has to
+      // step in when detection was not enough.
+      const prepared: ImportedFile[] = [];
+      for (const entry of added) {
+        try {
+          const parsed = await workerTask<ParseResult>("normalize", {
+            source: entry.source,
+            file: entry.file,
+            options: entry.options,
+          });
+          if (!active(token)) return;
+          prepared.push({ ...entry, result: parsed });
+        } catch (e) {
+          if (!active(token)) return;
+          prepared.push({
+            ...entry,
+            parseError:
+              e instanceof Error
+                ? e.message || "自动识别字段失败，请在下方确认后重试"
+                : "自动识别字段失败，请在下方确认后重试",
+          });
+        }
+      }
       invalidate();
-      setFiles([...retained, ...added]);
+      setFiles([...retained, ...prepared]);
       setDecisions({});
-      setMessage(
+      const done = prepared.filter((f) => f.result);
+      const rows = done.reduce((n, f) => n + f.result!.transactions.length, 0);
+      const bad = done.reduce((n, f) => n + f.result!.errors.length, 0);
+      const replaced =
         source === "suishouji" && !append
-          ? "已载入新版随手记文件，旧版已替换；请确认字段，重新对账。原人工匹配将重新验证。"
-          : "文件已载入，请展开文件确认字段映射。",
+          ? "已载入新版随手记文件，旧版已替换；原人工匹配将重新验证。"
+          : "";
+      setMessage(
+        replaced +
+          (done.length < prepared.length
+            ? `已自动解析 ${done.length} 个文件；${prepared.length - done.length} 个文件还需要你补充信息，已在下方展开并说明原因。`
+            : prepared.length === 1
+              ? `解析完成：${rows} 条有效，${bad} 条错误。请关联账户后开始对账。`
+              : `已自动解析 ${prepared.length} 个文件：共 ${rows} 条有效，${bad} 条错误。请关联账户后开始对账。`),
       );
     });
   }
@@ -368,6 +404,24 @@ export default function App() {
     });
   }
   const validFiles = files.filter((f) => f.result).length;
+  const hasLedger = transactions.some((t) => t.source === "suishouji");
+  const hasStatement = transactions.some((t) => t.source !== "suishouji");
+  // Everything still standing between the user and a reconciliation run, in
+  // the order it should be dealt with.
+  const blockers = !files.length
+    ? ["导入随手记账本文件，以及至少一个银行或微信账单文件"]
+    : ([
+        files.some((f) => !f.result) && "完成上方还没解析好的文件",
+        !hasLedger && "导入随手记账本文件",
+        !hasStatement && "导入至少一个银行或微信账单文件",
+        !settings.accountIds.length && "在第 2 步勾选要对账的银行账户",
+        (!settings.start || !settings.end) && "在第 2 步选择开始和结束日期",
+      ].filter(Boolean) as string[]);
+  const nextStep = blockers.length
+    ? blockers[0]
+    : result
+      ? "在第 3 步逐笔核实差异，必要时修订随手记后重新导入"
+      : "点击“开始对账”";
   return (
     <>
       <header className="site-header">
@@ -443,6 +497,10 @@ export default function App() {
             隐私与限制 ↗
           </button>
         </div>
+        <p className="next-step">
+          <b>下一步</b>
+          {nextStep}
+        </p>
         <div className="workflow">
           <div className={files.length ? "complete" : ""}>
             <b>1</b>
@@ -513,12 +571,7 @@ export default function App() {
           }}
           onRun={() => void run()}
           busy={busy}
-          canRun={
-            files.length > 0 &&
-            files.every((f) => !!f.result) &&
-            transactions.some((t) => t.source === "suishouji") &&
-            transactions.some((t) => t.source !== "suishouji")
-          }
+          blockers={blockers}
         />
         <ResultsPanel
           key={result ? "result" : "empty"}
