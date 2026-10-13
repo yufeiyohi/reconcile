@@ -1,6 +1,6 @@
 import Papa from "papaparse";
 import type { Reconciliation, Settings } from "../domain/reconciliation/types";
-import { statusLabels } from "../domain/reconciliation/types";
+import { statusLabels, statusHelp } from "../domain/reconciliation/types";
 import { maskAccount, money, sourceNames } from "../domain/transactions/types";
 import type { Decision, ImportedFile } from "../components/types";
 import { decisionLabels } from "../components/types";
@@ -20,27 +20,33 @@ export function buildReport(
   const tx = new Map(result.transactions.map((t) => [t.id, t]));
   const names = new Map(files.map((f) => [f.file.id, f.file.name]));
   const headers = [
-    "银行",
-    "账户（脱敏）",
-    "差异类别",
-    "银行日期",
-    "银行金额",
-    "银行方向",
-    "银行摘要",
-    "随手记日期",
-    "随手记金额",
-    "随手记方向",
-    "随手记备注",
-    "差额（银行净额减账本净额）",
-    "原文件 / 工作表 / 行号",
-    "匹配理由",
-    "人工状态",
-    "人工备注",
+    "来源（银行 / 渠道）",
+    "账户（已脱敏）",
+    "这是什么情况",
+    "该怎么办",
+    "银行账单 · 日期",
+    "银行账单 · 金额",
+    "银行账单 · 收支",
+    "银行账单 · 摘要",
+    "随手记 · 日期",
+    "随手记 · 金额",
+    "随手记 · 收支",
+    "随手记 · 备注",
+    "金额差（银行 − 随手记）",
+    "在哪个文件的第几行",
+    "判断依据",
+    "你的处理",
+    "你的备注",
     "对账期间",
-    "日期口径",
-    "容差（天）",
+    "按哪个日期比对",
+    "允许日期相差（天）",
     "币种",
-    "转账标记",
+    "是否账户间转账",
+  ];
+  // Short rows would make a ragged CSV; pad every row to the header width.
+  const pad = (cells: (string | number)[]) => [
+    ...cells,
+    ...Array(Math.max(0, headers.length - cells.length)).fill(""),
   ];
   const rows = result.items.map((item) => {
     const b = item.bankIds.map((id) => tx.get(id)!),
@@ -58,10 +64,11 @@ export function buildReport(
         0n,
       );
     const decision = decisions[item.id];
-    return [
+    return pad([
       sourceNames[b[0]?.source] || b[0]?.source || "",
       maskAccount(item.accountId),
       statusLabels[item.status],
+      statusHelp[item.status],
       b.map((t) => t[settings.dateBasis] || "缺失").join(" / "),
       b.map((t) => money(t.amountMinor)).join(" / "),
       b
@@ -103,53 +110,49 @@ export function buildReport(
       settings.tolerance,
       [...new Set([...b, ...l].map((t) => t.currency))].join(" / "),
       [...b, ...l].some((t) => t.isTransfer) ? "账户转账（非消费）" : "",
-    ];
+    ]);
   });
   for (const file of files)
     for (const error of file.result?.errors || [])
-      rows.push([
-        sourceNames[file.source],
-        "",
-        "解析错误",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        `${file.file.name} / ${error.sheetName || file.options.sheet} / 第 ${error.row} 行`,
-        error.message,
-        "",
-        "",
-        "",
-        "",
-        "",
-      ]);
+      rows.push(
+        pad([
+          sourceNames[file.source],
+          "",
+          "解析错误",
+          "这一行没能读成一条流水，没有计入对账。按提示修正原文件后重新导入。",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          `${file.file.name} / ${error.sheetName || file.options.sheet} / 第 ${error.row} 行`,
+          error.message,
+        ]),
+      );
   for (const warning of result.warnings)
-    rows.push([
-      "",
-      "",
-      "文件覆盖范围 / 人工决策警告",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      warning,
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
+    rows.push(
+      pad([
+        "",
+        "",
+        "提醒",
+        "关于账单覆盖范围或人工匹配的提醒，请结合原始账单判断。",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        warning,
+      ]),
+    );
   return (
     "\uFEFF" +
     Papa.unparse(

@@ -89,7 +89,7 @@ test("complete import, account separation, trace, export, replace and clear flow
   for await (const chunk of stream!) csv += chunk.toString();
   expect(csv).toContain("疑似漏记");
   expect(csv).toContain("合成测试核对备注");
-  expect(csv).toContain("原文件 / 工作表 / 行号");
+  expect(csv).toContain("在哪个文件的第几行");
   await upload(
     page,
     "随手记",
@@ -401,4 +401,44 @@ test("results explain each situation in plain language, and bad rows can be prev
   await expect(page.locator(".preview-target")).toContainText("人工构造错行");
   await page.getByRole("button", { name: "回到表头下方" }).click();
   await expect(page.locator(".preview-target")).toHaveCount(0);
+});
+
+test("first-run guide, FAQ and a report whose columns a beginner can read", async ({
+  page,
+}) => {
+  const downloads: string[] = [];
+  await page.goto("./");
+  await expect(page.locator(".onboarding")).toContainText("三步就能对完一个月");
+  // The FAQ is reachable without importing anything.
+  await page.locator(".site-header").getByText("常见问题").click();
+  await page.locator(".help-modal summary").first().click();
+  await expect(page.locator(".help-modal")).toContainText("逐笔核对");
+  await page.getByRole("button", { name: "关闭常见问题" }).click();
+  await page.getByRole("button", { name: "先用示例数据走一遍" }).click();
+  await expect(page.getByRole("status")).toContainText("已载入人工构造");
+  // The guide steps aside once there is data to work with.
+  await expect(page.locator(".onboarding")).toHaveCount(0);
+  await page.getByRole("button", { name: "开始对账" }).click();
+  await expect(page.locator("#results")).toContainText("严格匹配");
+  page.on("download", async (d) => {
+    const stream = await d.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Buffer);
+    downloads.push(Buffer.concat(chunks).toString("utf-8"));
+  });
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "导出 CSV 报告" }).click();
+  await expect.poll(() => downloads.length).toBe(1);
+  const [header, ...rows] = downloads[0].replace(/^﻿/, "").trim().split("\r\n");
+  expect(header).toContain("这是什么情况");
+  expect(header).toContain("该怎么办");
+  expect(header).toContain("你的处理");
+  expect(downloads[0]).toContain("核实后到随手记补记");
+  // Every row carries the full set of columns, warnings and parse errors too.
+  const width = header.split('","').length;
+  expect(
+    rows
+      .filter((r) => r.startsWith('"'))
+      .every((r) => r.split('","').length === width),
+  ).toBe(true);
 });

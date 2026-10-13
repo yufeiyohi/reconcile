@@ -344,6 +344,92 @@ h1 span {
   margin-left: 8px;
   font-size: 11px;
 }
+.onboarding {
+  max-width: 1180px;
+  margin: 26px auto 0;
+  padding: 22px 26px;
+  border: 1px solid #d9e6dc;
+  border-radius: 14px;
+  background: #fff;
+}
+.onboarding-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+}
+.onboarding h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.onboarding ol {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  counter-reset: onboarding;
+}
+.onboarding li {
+  position: relative;
+  padding-left: 34px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: #4a5c4f;
+  counter-increment: onboarding;
+}
+.onboarding li::before {
+  content: counter(onboarding);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #eaf3ec;
+  color: #1f6b3f;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.onboarding li b {
+  display: block;
+  color: #1b3326;
+}
+.onboarding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+.onboarding-actions small {
+  color: #8a988c;
+  font-size: 11px;
+}
+.help-modal details {
+  border-bottom: 1px solid #eef2ef;
+  padding: 12px 0;
+}
+.help-modal summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #1b3326;
+  font-size: 14px;
+}
+.help-modal details p {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.9;
+  color: #4a5c4f;
+}
+.site-header nav .text-button {
+  font-size: inherit;
+  padding: 0;
+}
 .next-step {
   display: flex;
   align-items: center;
@@ -1247,6 +1333,10 @@ footer {
   }
 }
 @media (max-width: 1000px) {
+  .onboarding ol {
+    grid-template-columns: 1fr;
+  }
+
   .site-header {
     padding: 0 24px;
   }

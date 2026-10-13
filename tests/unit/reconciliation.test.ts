@@ -7,6 +7,7 @@ import {
 import type { Transaction } from "../../src/domain/transactions/types";
 import type { Settings } from "../../src/domain/reconciliation/types";
 import { suggestAccountMappings } from "../../src/domain/reconciliation/suggest";
+import { buildReport } from "../../src/export/report";
 const tx = (
   id: string,
   source = "icbc",
@@ -296,5 +297,49 @@ describe("账户自动关联建议", () => {
       { "suishouji:招商活期": "" },
     );
     expect(result).toEqual({ "suishouji:招商活期": "" });
+  });
+});
+describe("导出报告", () => {
+  const files = [
+    {
+      key: "icbc:f1",
+      source: "icbc",
+      file: { id: "f1", name: "人工构造-工行.csv", sheets: [], warnings: [] },
+      options: {
+        sheet: "CSV",
+        headerRow: 1,
+        mapping: {},
+        fixedAccount: "",
+        defaultCurrency: "CNY",
+        signedAmount: false,
+      },
+      result: {
+        transactions: [],
+        errors: [{ row: 3, message: "金额不是数字" }],
+        warnings: [],
+      },
+      importedAt: "00:00:00",
+    },
+  ];
+  const report = () =>
+    buildReport(
+      run([tx("b"), tx("s2", "suishouji", { amountMinor: "999" })]),
+      settings,
+      files,
+      {},
+    );
+  it("每一行的列数与表头一致，解析错误和提醒也不例外", () => {
+    const rows = report().replace(/^﻿/, "").trim().split("\r\n");
+    const columns = rows.map((r) => r.split('","').length);
+    expect(rows.length).toBeGreaterThan(3);
+    expect(new Set(columns).size).toBe(1);
+  });
+  it("表头用白话，并带上处理建议列", () => {
+    const header = report().split("\r\n")[0];
+    expect(header).toContain("这是什么情况");
+    expect(header).toContain("该怎么办");
+    expect(header).toContain("金额差（银行 − 随手记）");
+    expect(header).toContain("在哪个文件的第几行");
+    expect(report()).toContain("请以银行账单为准");
   });
 });

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ImportPanel } from "./components/ImportPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { ResultsPanel } from "./components/ResultsPanel";
+import { HelpModal } from "./components/HelpModal";
 import type { Decision, ImportedFile } from "./components/types";
 import type { ImportOptions, ParsedFile } from "./adapters/types";
 import { adapterRegistry } from "./adapters/registry";
@@ -69,7 +70,9 @@ export default function App() {
     [comparison, setComparison] = useState(""),
     [comparisonPrevious, setComparisonPrevious] =
       useState<Reconciliation | null>(null),
-    [privacy, setPrivacy] = useState(false);
+    [privacy, setPrivacy] = useState(false),
+    [help, setHelp] = useState(false),
+    [guideOff, setGuideOff] = useState(false);
   const generation = useRef(0),
     busyRef = useRef(false),
     previous = useRef<Reconciliation | null>(null),
@@ -435,6 +438,9 @@ export default function App() {
           <a href="#imports">导入账单</a>
           <a href="#settings">账户与规则</a>
           <a href="#results">对账结果</a>
+          <button className="text-button" onClick={() => setHelp(true)}>
+            常见问题
+          </button>
         </nav>
         <div className="header-actions">
           <span className="local-badge">
@@ -497,6 +503,39 @@ export default function App() {
             隐私与限制 ↗
           </button>
         </div>
+        {!files.length && !guideOff && (
+          <section className="onboarding">
+            <div className="onboarding-head">
+              <h2>第一次用？三步就能对完一个月</h2>
+              <button className="text-button" onClick={() => setGuideOff(true)}>
+                不用引导，收起
+              </button>
+            </div>
+            <ol>
+              <li>
+                <b>导入</b>
+                从随手记导出账本，从网银导出银行流水，按下面的来源各选一个文件。字段会自动识别，不用自己设置。
+              </li>
+              <li>
+                <b>关联</b>
+                告诉网站随手记里的账户对应哪份账单。名字能对上的已经帮你选好，核对一下即可。
+              </li>
+              <li>
+                <b>核对</b>
+                点「开始对账」，逐条看差异。每种情况都写明了是什么意思、该怎么办。
+              </li>
+            </ol>
+            <div className="onboarding-actions">
+              <button onClick={() => void demo()} disabled={busy}>
+                先用示例数据走一遍
+              </button>
+              <button className="text-button" onClick={() => setHelp(true)}>
+                常见问题 ↗
+              </button>
+              <small>示例全部为人工构造，不是真实账单。</small>
+            </div>
+          </section>
+        )}
         <p className="next-step">
           <b>下一步</b>
           {nextStep}
@@ -613,11 +652,15 @@ export default function App() {
             ≋ 清账 <small>让每一笔都有据可查</small>
           </span>
           <span>仅提供核对线索 · 不自动修改账本或执行交易</span>
+          <button className="text-button" onClick={() => setHelp(true)}>
+            常见问题
+          </button>
           <button className="text-button" onClick={() => setPrivacy(true)}>
             隐私说明
           </button>
         </footer>
       </main>
+      {help && <HelpModal onClose={() => setHelp(false)} />}
       {privacy && (
         <div className="modal-backdrop" onClick={() => setPrivacy(false)}>
           <section
