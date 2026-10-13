@@ -63,13 +63,32 @@ test("XLS multi-sheet ledger and XLSX custom header row work in real workers", a
     ]),
     "转账",
   );
+  XLS.utils.book_append_sheet(
+    book,
+    XLS.utils.aoa_to_sheet([
+      headers.map((h) => (h === "支出账户" ? "收入账户" : h)),
+      [
+        "收入",
+        "2026-01-01",
+        "合成",
+        "",
+        "工商银行",
+        40,
+        "",
+        "合成付款方",
+        "人工构造收入",
+        "测试",
+      ],
+    ]),
+    "收入",
+  );
   await page.goto("./");
   await page.getByLabel("上传随手记", { exact: true }).setInputFiles({
     name: "人工构造-多工作表.xls",
     mimeType: "application/vnd.ms-excel",
     buffer: XLS.write(book, { type: "buffer", bookType: "biff8" }),
   });
-  await expect(page.getByRole("status")).toContainText("3 条有效，0 条错误");
+  await expect(page.getByRole("status")).toContainText("4 条有效，0 条错误");
   const wx = XLS.utils.book_new();
   XLS.utils.book_append_sheet(
     wx,

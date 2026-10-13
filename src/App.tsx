@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ImportPanel } from "./components/ImportPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { ResultsPanel } from "./components/ResultsPanel";
+import { BalancePanel } from "./components/BalancePanel";
+import type { BalanceInput } from "./domain/reconciliation/balances";
 import { HelpModal } from "./components/HelpModal";
 import type { Decision, ImportedFile } from "./components/types";
 import type { ImportOptions, ParsedFile } from "./adapters/types";
@@ -59,6 +61,10 @@ function fingerprints(r: Reconciliation): Map<string, number> {
   return m;
 }
 export default function App() {
+  const [balanceInputs, setBalanceInputs] = useState<
+    Record<string, BalanceInput>
+  >({});
+  const [resultView, setResultView] = useState("balance");
   const [files, setFiles] = useState<ImportedFile[]>([]),
     [settings, setSettings] = useState<Settings>(initialSettings),
     [result, setResult] = useState<Reconciliation | null>(null),
@@ -340,6 +346,8 @@ export default function App() {
       return;
     cancel();
     setFiles([]);
+    setBalanceInputs({});
+    setResultView("balance");
     setSettings(initialSettings);
     setResult(null);
     setManual([]);
@@ -354,6 +362,7 @@ export default function App() {
   async function demo() {
     if (files.length && !window.confirm("使用人工构造演示替换本次数据？"))
       return;
+    setBalanceInputs({});
     await task(async (token) => {
       const prepared: ImportedFile[] = [];
       for (const [source, content] of Object.entries(demoFiles)) {
@@ -423,7 +432,9 @@ export default function App() {
   const nextStep = blockers.length
     ? blockers[0]
     : result
-      ? "在第 3 步逐笔核实差异，必要时修订随手记后重新导入"
+      ? resultView === "balance"
+        ? "在第 3 步选择一个账户、填写期初余额，按日期核对异常日"
+        : "在第 3 步逐笔核实差异，必要时修订随手记后重新导入"
       : "点击“开始对账”";
   return (
     <>
@@ -463,7 +474,7 @@ export default function App() {
               <span>让记账安心。</span>
             </h1>
             <p>
-              银行账单与随手记逐笔核对。找到疑似差异，追溯原始记录，
+              按银行账户逐日核对余额。展开异常日，找到需要修订的支出，
               <br />
               每一步确认都由你掌握。
             </p>
@@ -522,7 +533,7 @@ export default function App() {
               </li>
               <li>
                 <b>核对</b>
-                点「开始对账」，逐条看差异。每种情况都写明了是什么意思、该怎么办。
+                点「开始对账」，选择单个账户并填写期初余额；按日期核对异常日的支出。信用卡沿用逐笔核对。
               </li>
             </ol>
             <div className="onboarding-actions">
@@ -612,41 +623,74 @@ export default function App() {
           busy={busy}
           blockers={blockers}
         />
-        <ResultsPanel
-          key={result ? "result" : "empty"}
-          result={result}
-          settings={settings}
-          files={files}
-          decisions={decisions}
-          onDecision={(id, d) => setDecisions((ds) => ({ ...ds, [id]: d }))}
-          onManual={addManual}
-          onUndo={(item) =>
-            void run(
-              manual.filter(
-                (m) =>
-                  JSON.stringify([...m.bankIds].sort()) !==
-                    JSON.stringify([...item.bankIds].sort()) ||
-                  JSON.stringify([...m.ledgerIds].sort()) !==
-                    JSON.stringify([...item.ledgerIds].sort()),
-              ),
-            )
-          }
-          onReset={() => {
-            setDecisions({});
-            void run([]);
-          }}
-          onExport={() => {
-            if (
-              result &&
-              window.confirm(
-                "报告包含财务信息，请仅保存在可信设备，并谨慎分享。确认导出全部结果（不受筛选影响）？",
-              )
-            )
-              downloadReport(buildReport(result, settings, files, decisions));
-          }}
-          comparison={comparison}
-          comparisonPrevious={comparisonPrevious}
-        />
+        <div id="results">
+          {result && (
+            <div className="tabs result-view-tabs" aria-label="对账查看方式">
+              <button
+                className={resultView === "balance" ? "active" : ""}
+                onClick={() => setResultView("balance")}
+              >
+                按账户核对余额
+              </button>
+              <button
+                className={resultView === "records" ? "active" : ""}
+                onClick={() => setResultView("records")}
+              >
+                信用卡与逐笔核对
+              </button>
+            </div>
+          )}
+          {result && resultView === "balance" && (
+            <BalancePanel
+              result={result}
+              settings={settings}
+              files={files}
+              inputs={balanceInputs}
+              onInput={(key, value) =>
+                setBalanceInputs((s) => ({ ...s, [key]: value }))
+              }
+            />
+          )}
+          <div hidden={!!result && resultView === "balance"}>
+            <ResultsPanel
+              key={result ? "result" : "empty"}
+              result={result}
+              settings={settings}
+              files={files}
+              decisions={decisions}
+              onDecision={(id, d) => setDecisions((ds) => ({ ...ds, [id]: d }))}
+              onManual={addManual}
+              onUndo={(item) =>
+                void run(
+                  manual.filter(
+                    (m) =>
+                      JSON.stringify([...m.bankIds].sort()) !==
+                        JSON.stringify([...item.bankIds].sort()) ||
+                      JSON.stringify([...m.ledgerIds].sort()) !==
+                        JSON.stringify([...item.ledgerIds].sort()),
+                  ),
+                )
+              }
+              onReset={() => {
+                setDecisions({});
+                void run([]);
+              }}
+              onExport={() => {
+                if (
+                  result &&
+                  window.confirm(
+                    "报告包含财务信息，请仅保存在可信设备，并谨慎分享。确认导出全部结果（不受筛选影响）？",
+                  )
+                )
+                  downloadReport(
+                    buildReport(result, settings, files, decisions),
+                  );
+              }}
+              comparison={comparison}
+              comparisonPrevious={comparisonPrevious}
+            />
+          </div>
+        </div>
         <footer>
           <span className="footer-brand">
             ≋ 清账 <small>让每一笔都有据可查</small>

@@ -18,6 +18,7 @@ export function suggestMapping(headers: string[]): FieldMapping {
     postingDate: ["入账日期", "记账日期"],
     direction: ["收支方向", "收支类型", "方向", "收/支", "类型", "交易类型"],
     amount: ["金额", "交易金额", "金额(元)"],
+    balance: ["余额", "账户余额", "交易后余额", "余额(元)"],
     income: ["收入", "收入金额", "贷方金额", "记账金额(收入)"],
     expense: ["支出", "支出金额", "借方金额", "记账金额(支出)"],
     account: ["账户", "账户名称", "账号", "银行卡号", "支出账户", "收入账户"],
@@ -170,6 +171,14 @@ export function createGenericAdapter(
               row.map((value, j) => [`${j + 1}:${headers[j] || ""}`, value]),
             ),
           };
+          if (m.balance !== undefined && get("balance").trim()) {
+            try {
+              const balance = parseAmount(get("balance"));
+              t.balanceMinor = `${balance.negative && balance.minor !== "0" ? "-" : ""}${balance.minor}`;
+            } catch {
+              t.balanceIssue = "余额格式无法识别，请核对原始账单";
+            }
+          }
           result.transactions.push(t);
         } catch (e) {
           result.errors.push({

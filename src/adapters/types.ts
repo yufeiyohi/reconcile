@@ -17,6 +17,7 @@ export type Field =
   | "postingDate"
   | "direction"
   | "amount"
+  | "balance"
   | "income"
   | "expense"
   | "account"
@@ -53,6 +54,7 @@ export const fieldLabels: Record<Field, string> = {
   postingDate: "入账日期",
   direction: "收支方向",
   amount: "金额",
+  balance: "交易后余额（非交易金额）",
   income: "独立收入金额",
   expense: "独立支出金额",
   account: "账户名称 / 账号",

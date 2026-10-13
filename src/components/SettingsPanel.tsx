@@ -191,7 +191,8 @@ export function SettingsPanel({
       </div>
       <div className="run-footer">
         <span>
-          {transactions.length} 条有效记录 · 不以总额相等代替逐笔核对
+          {transactions.length} 条有效记录 ·
+          先按单个账户核对每日余额，异常日再查看支出
           {blockers.length > 0 && (
             <small className="blockers">
               还差 {blockers.length} 步才能开始：{blockers.join("；")}

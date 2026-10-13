@@ -9,6 +9,8 @@ export interface Transaction {
   postingDate: string | null;
   direction: Direction;
   amountMinor: string;
+  balanceMinor?: string;
+  balanceIssue?: string;
   currency: string;
   description: string;
   counterparty?: string;

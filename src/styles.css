@@ -1646,3 +1646,138 @@ footer {
   margin: 4px 0;
   overflow-wrap: anywhere;
 }
+
+/* Daily, single-account balance review */
+.balance-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 20px 0;
+}
+.balance-controls > label:first-child {
+  min-width: 260px;
+}
+.balance-setup {
+  padding: 18px;
+  background: #f4f8f5;
+  border-radius: 8px;
+}
+.balance-setup .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.balance-setup small {
+  font-size: 11px;
+  color: #63786b;
+}
+.balance-setup .check {
+  margin-top: 16px;
+}
+.balance-counts {
+  margin: 20px 0 12px;
+  font-size: 13px;
+  color: #52695a;
+}
+.balance-day {
+  margin: 10px 0;
+  border: 1px solid #dce6df;
+  border-radius: 8px;
+}
+.balance-day > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.balance-day > summary::before {
+  content: "▸";
+}
+.balance-day[open] > summary::before {
+  content: "▾";
+}
+.balance-day > summary b {
+  margin-left: 5px;
+}
+.balance-different {
+  border-color: #d99977;
+  background: #fff7f1;
+}
+.balance-different > summary > strong {
+  color: #a24325;
+}
+.balance-equal {
+  background: #f4faf6;
+}
+.balance-unknown {
+  background: #fffcf3;
+}
+.balance-day-body {
+  padding: 0 16px 16px;
+}
+.balance-day-details {
+  font-size: 13px;
+}
+.balance-expenses {
+  background: white;
+}
+.balance-expenses td {
+  vertical-align: top;
+  min-width: 180px;
+}
+.balance-expenses .expense-problem {
+  background: #fff1e7;
+}
+.balance-transaction {
+  display: grid;
+  gap: 5px;
+  padding: 8px 0;
+  overflow-wrap: anywhere;
+}
+.balance-transaction small {
+  color: #64776b;
+  font-size: 11px;
+}
+.balance-other {
+  margin-top: 16px;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+}
+.balance-other summary {
+  cursor: pointer;
+}
+.balance-other-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.bank-balance-input {
+  max-width: 380px;
+  margin: 16px 0;
+}
+@media (max-width: 650px) {
+  .balance-setup .form-grid,
+  .balance-other-columns {
+    grid-template-columns: 1fr;
+  }
+  .balance-controls > label:first-child {
+    min-width: 0;
+    width: 100%;
+  }
+  .balance-day > summary {
+    gap: 10px;
+  }
+  .balance-day > summary > span:not(.pill) {
+    width: 100%;
+  }
+  .balance-setup {
+    padding: 12px;
+  }
+  .result-view-tabs {
+    flex-wrap: wrap;
+  }
+}

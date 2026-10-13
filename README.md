@@ -6,6 +6,14 @@ A browser-local personal transaction reconciliation app with a Chinese-language 
 
 **Public source code does not mean public financial data. Never commit real statements, exported reports, or supporting documents to this repository.** The app does not upload statements, use AI, log in to banks, make payments, or modify Suishouji. Session data is kept in memory by default and cleared when you refresh or close the page.
 
+## Daily closing balance review
+
+Results now default to one debit/payment account at a time, ordered oldest first. Enter the Suishouji closing balance immediately before the selected start date and confirm complete exports. All three ledger sheets—expenses, income, and transfers—contribute to the running balance. Transfers debit the source account and credit the destination account.
+
+ICBC and CMB debit statements supply running balances. The app validates ordering and balance continuity before selecting the daily closing balance. Equal closing balances for the same account are hidden by default (with a toggle to show them); offsetting detail discrepancies on equal days are not flagged. Unequal days highlight bank expenses alongside ledger amounts, counterparties, descriptions, and source rows. Income and transfers appear separately.
+
+The supplied WeChat statement has no balance column. Missing or uncertain balances require a manually verified daily closing balance; equal daily cash flow alone never establishes equal account balances. Credit card matching is unchanged under “信用卡与逐笔核对”. The existing CSV report still exports transaction-level results, not the new daily balance inputs/results. All new inputs remain in memory only.
+
 ## Run locally
 
 Requires Node.js 24 and npm, plus a modern browser with support for Web Workers, BigInt, and Web Crypto.

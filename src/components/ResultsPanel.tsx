@@ -71,7 +71,7 @@ export function ResultsPanel({
   );
   if (!result)
     return (
-      <section className="panel result-empty" id="results">
+      <section className="panel result-empty" id="record-results">
         <div className="section-heading">
           <div>
             <span className="step-number">03</span>
@@ -199,7 +199,7 @@ export function ResultsPanel({
     );
   };
   return (
-    <section className="panel" id="results">
+    <section className="panel" id="record-results">
       <div className="section-heading">
         <div>
           <span className="step-number">03</span>

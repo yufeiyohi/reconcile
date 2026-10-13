@@ -68,6 +68,7 @@ test("complete import, account separation, trace, export, replace and clear flow
   await page.getByLabel("映射账户-工行账本").selectOption("icbc:银行A");
   await page.getByLabel("映射账户-招行账本").selectOption("cmb:银行B");
   await page.getByRole("button", { name: "开始对账" }).click();
+  await page.getByRole("button", { name: "信用卡与逐笔核对", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "对账结果", exact: true }),
   ).toBeVisible();
@@ -103,6 +104,7 @@ test("complete import, account separation, trace, export, replace and clear flow
     ]),
   );
   await page.getByRole("button", { name: "开始对账" }).click();
+  await page.getByRole("button", { name: "信用卡与逐笔核对", exact: true }).click();
   await expect(page.locator("#results")).toContainText("旧差异不再出现");
   await expect(page.locator(".result-table")).not.toContainText("疑似漏记");
   await expect(page.locator(".result-table")).not.toContainText("疑似多记");
@@ -140,6 +142,7 @@ test("duplicate files, malformed input, demo ambiguities, manual confirmation an
   await page.getByRole("button", { name: "试用合成示例" }).click();
   await expect(page.getByRole("status")).toContainText("已载入人工构造");
   await page.getByRole("button", { name: "开始对账" }).click();
+  await page.getByRole("button", { name: "信用卡与逐笔核对", exact: true }).click();
   await expect(page.locator(".result-table")).toContainText("疑似重复");
   await expect(page.locator(".result-table")).toContainText("疑似日期偏差");
   await page.getByLabel("筛选差异类别").selectOption("date");
@@ -182,6 +185,7 @@ test("manual split keeps exact totals and cancellation discards unfinished impor
   await upload(page, "工商银行", "人工构造-拆分银行.csv", bank);
   await page.getByLabel("映射账户-L", { exact: true }).selectOption("icbc:B");
   await page.getByRole("button", { name: "开始对账" }).click();
+  await page.getByRole("button", { name: "信用卡与逐笔核对", exact: true }).click();
   await page.getByRole("button", { name: "查看详情" }).click();
   await page.getByRole("button", { name: "确认这组匹配" }).click();
   await page.getByRole("button", { name: "全部记录", exact: true }).click();
@@ -309,6 +313,7 @@ test("beginner path: files parse themselves, accounts link themselves, blockers 
   await expect(page.locator(".blockers")).toHaveCount(0);
   await expect(page.locator(".next-step")).toContainText("开始对账");
   await page.getByRole("button", { name: "开始对账" }).click();
+  await page.getByRole("button", { name: "信用卡与逐笔核对", exact: true }).click();
   await expect(page.locator("#results")).toContainText("严格匹配");
   await expect(page.locator(".next-step")).toContainText("逐笔核实差异");
 });
@@ -369,6 +374,7 @@ test("results explain each situation in plain language, and bad rows can be prev
   await page.getByRole("button", { name: "试用合成示例" }).click();
   await expect(page.getByRole("status")).toContainText("已载入人工构造");
   await page.getByRole("button", { name: "开始对账" }).click();
+  await page.getByRole("button", { name: "信用卡与逐笔核对", exact: true }).click();
   await expect(page.locator(".reading-guide")).toContainText("查看详情");
   await page.getByLabel("筛选差异类别").selectOption("missing");
   await expect(page.locator(".status-help").first()).toContainText(
@@ -419,6 +425,7 @@ test("first-run guide, FAQ and a report whose columns a beginner can read", asyn
   // The guide steps aside once there is data to work with.
   await expect(page.locator(".onboarding")).toHaveCount(0);
   await page.getByRole("button", { name: "开始对账" }).click();
+  await page.getByRole("button", { name: "信用卡与逐笔核对", exact: true }).click();
   await expect(page.locator("#results")).toContainText("严格匹配");
   page.on("download", async (d) => {
     const stream = await d.createReadStream();
