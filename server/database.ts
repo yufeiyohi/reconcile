@@ -16,6 +16,9 @@ export function database(config: Config): Pool {
     timezone: "Z",
     dateStrings: true,
     multipleStatements: false,
+    // MySQL 8.0.24 stalls prepared SELECTs when query attributes are negotiated.
+    // This app does not use query attributes; keep normal prepared parameters.
+    flags: ["-CLIENT_QUERY_ATTRIBUTES"],
     ssl: config.DB_SSL_CA_FILE
       ? { ca: readFileSync(config.DB_SSL_CA_FILE), rejectUnauthorized: true }
       : undefined,
