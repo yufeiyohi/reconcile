@@ -2,9 +2,24 @@
 
 [简体中文](README.zh-CN.md)
 
-A browser-local personal transaction reconciliation app with a Chinese-language interface. Compare your Suishouji (随手记) ledger against statements from ICBC, China Merchants Bank debit cards, China Merchants Bank credit cards, and WeChat Pay, account by account. Identify potential missing, extra, or duplicate entries, as well as date, direction, and amount discrepancies, and trace each result back to its original file and row.
+A private personal transaction reconciliation app with a Chinese-language interface. Compare your Suishouji (随手记) ledger against statements from ICBC, China Merchants Bank debit cards, China Merchants Bank credit cards, and WeChat Pay, account by account. Identify potential missing, extra, or duplicate entries, as well as date, direction, and amount discrepancies, and trace each result back to its original file and row.
 
-**Public source code does not mean public financial data. Never commit real statements, exported reports, or supporting documents to this repository.** The app does not upload statements, use AI, log in to banks, make payments, or modify Suishouji. Session data is kept in memory by default and cleared when you refresh or close the page.
+**Public source code does not mean public financial data. Never commit real statements, exported reports, credentials, or supporting documents to this repository.** The default build now includes single-user login, a Node backend, persistent MySQL statements/workspace, and operation audit logs. It does not call AI, log in to banks, make payments, or modify Suishouji. API synchronization with Suishouji remains pending official interface details.
+
+## Private server deployment (phase two)
+
+Frontend and backend run together on `122.51.151.143`, connecting to MySQL `1.15.64.31:3306`, database `reconcile`. Hermes handles deployment. See [the deployment guide](docs/deployment.md) and [.env.example](.env.example).
+
+```bash
+npm ci
+cp .env.example .env
+# Configure MySQL, the actual HTTPS APP_ORIGIN and the initial admin credential
+npm run build
+npm run db:migrate
+npm start
+```
+
+The backend reads `.env`; credentials must never use a `VITE_` prefix. Persistent statements include extracted original table data and server-normalized records (not original binary files). Refresh/login restores saved workspace. Removing a file from a workspace preserves it in the library; permanent deletion is a separate action. Audit records contain operation metadata, not financial rows or credentials.
 
 ## Daily closing balance review
 
@@ -12,7 +27,7 @@ Results now default to one debit/payment account at a time, ordered oldest first
 
 ICBC and CMB debit statements supply running balances. The app validates ordering and balance continuity before selecting the daily closing balance. Equal closing balances for the same account are hidden by default (with a toggle to show them); offsetting detail discrepancies on equal days are not flagged. Unequal days highlight bank expenses alongside ledger amounts, counterparties, descriptions, and source rows. Income and transfers appear separately.
 
-WeChat imports retain only rows whose payment method is exactly “零钱” and whose direction is expenditure. Lingqiantong, card payments, income, and other rows are ignored before parsing; original row numbers and filter counts remain available. A missing payment-method column requires explicit mapping. The supplied WeChat statement has no balance column, and expense-only rows cannot determine or carry forward daily wallet balances. Missing or uncertain balances require a manually verified daily closing balance; equal daily cash flow alone never establishes equal account balances. Credit card matching is unchanged under “信用卡与逐笔核对”. The existing CSV report still exports transaction-level results, not the new daily balance inputs/results. All new inputs remain in memory only.
+WeChat imports retain only rows whose payment method is exactly “零钱” and whose direction is expenditure. Lingqiantong, card payments, income, and other rows are ignored before parsing; original row numbers and filter counts remain available. A missing payment-method column requires explicit mapping. The supplied WeChat statement has no balance column, and expense-only rows cannot determine or carry forward daily wallet balances. Missing or uncertain balances require a manually verified daily closing balance; equal daily cash flow alone never establishes equal account balances. Credit card matching is unchanged under “信用卡与逐笔核对”. The existing CSV report still exports transaction-level results, not the new daily balance inputs/results. All new inputs are saved with the authenticated workspace in server mode.
 
 ## Run locally
 
@@ -20,6 +35,11 @@ Requires Node.js 24 and npm, plus a modern browser with support for Web Workers,
 
 ```bash
 npm ci
+# Configure development .env and run backend first; see docs/deployment.md
+npm run build:server
+npm run db:migrate
+npm start
+# In a second terminal:
 npm run dev
 ```
 
@@ -36,7 +56,7 @@ End-to-end tests exercise deployment under the `/reconcile/` subpath, covering f
 
 ```bash
 npx playwright install --with-deps chromium
-VITE_BASE_PATH=/reconcile/ npm run build
+VITE_APP_MODE=local VITE_BASE_PATH=/reconcile/ npm run build
 npm run test:e2e
 ```
 
@@ -61,12 +81,12 @@ Manual intervention is needed only when automatic detection is insufficient, suc
 3. **Handle Suishouji transfers.** Multi-sheet files can parse expenditure, income, and transfer sheets together. Each transfer row becomes two linked account entries, reconciled separately by account rather than counted again as spending.
 4. **Link ledger and source accounts.** A unique name match is preselected automatically and marked for verification. Manual changes or cleared selections are not overwritten; when a source has multiple accounts, the app does not guess. Example mappings from the supplied samples:
 
-   | Source | Suishouji account |
-   | --- | --- |
-   | ICBC | 工商银行 |
-   | China Merchants Bank debit card | 招商活期 |
-   | China Merchants Bank credit card, CNY | 招行信用卡(RMB) |
-   | WeChat Pay | 微支付 |
+   | Source                                | Suishouji account |
+   | ------------------------------------- | ----------------- |
+   | ICBC                                  | 工商银行          |
+   | China Merchants Bank debit card       | 招商活期          |
+   | China Merchants Bank credit card, CNY | 招行信用卡(RMB)   |
+   | WeChat Pay                            | 微支付            |
 
    Assign distinct accounts to different cards from the same bank. Unmapped accounts are marked as excluded from the current reconciliation. WeChat Pay and bank statements may represent the same payment, so combined totals across channels cannot simply be treated as total spending.
 
@@ -78,13 +98,13 @@ Manual intervention is needed only when automatic detection is insufficient, suc
 
 ## Supported formats and limitations
 
-| Source | Support |
-| --- | --- |
-| Generic CSV / XLSX | Header-row selection, previews, and manual field mapping |
-| Suishouji XLS | Expenditure, income, and transfer sheets validated against supplied samples |
-| ICBC CSV | Sample structure validated; uses **posted amount / posted currency** and excludes trailing summary rows |
-| China Merchants Bank debit card CSV | Sample structure validated; supports YYYYMMDD dates and separate income / expenditure columns |
-| WeChat Pay XLSX | Sample structure validated; only 零钱 expenses are retained; card payments, Lingqiantong, income and other rows are ignored |
+| Source                               | Support                                                                                                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Generic CSV / XLSX                   | Header-row selection, previews, and manual field mapping                                                                                          |
+| Suishouji XLS                        | Expenditure, income, and transfer sheets validated against supplied samples                                                                       |
+| ICBC CSV                             | Sample structure validated; uses **posted amount / posted currency** and excludes trailing summary rows                                           |
+| China Merchants Bank debit card CSV  | Sample structure validated; supports YYYYMMDD dates and separate income / expenditure columns                                                     |
+| WeChat Pay XLSX                      | Sample structure validated; only 零钱 expenses are retained; card payments, Lingqiantong, income and other rows are ignored                       |
 | China Merchants Bank credit card PDF | **Text-based CNY transaction tables only**; sample structure validated, with cross-year dates, posting-date-only records, and page / line tracing |
 
 Support for XLS, text-based PDF, and WeChat Pay was added with user authorization after the initial requirements. **Support for every official export version is not claimed; other official templates have not been validated.** Unrecognized spreadsheet templates can use generic field mapping. Unsupported PDF layouts, scanned documents, images, encrypted files, formulas, macros, and external workbook links are rejected. XLS must be a genuine BIFF file, not HTML disguised as a spreadsheet.
@@ -93,14 +113,14 @@ Some credit-card repayments provide only a posting date; their transaction date 
 
 Amounts are stored as decimal strings in cents, with BigInt used for aggregation and comparison. Precision already lost in an Excel source file cannot be recovered. Input amounts may have at most two decimal places. Recognized non-CNY currencies are retained but are not reconciled automatically.
 
-## Static deployment
+## Optional offline / static build
 
-No backend, database, secrets, or real statements are required. `dist/` contains only the application and synthetic examples.
+Only an explicit `VITE_APP_MODE=local` build runs without a backend or database. This is the offline test mode, not the default authenticated deployment. `dist/` contains only the application and synthetic examples.
 
-For a general deployment, run `npm run build` and publish `dist/`. Asset paths are relative by default. For a GitHub Pages project site:
+For an offline static deployment, run `VITE_APP_MODE=local npm run build` and publish `dist/`. Asset paths are relative by default. For a GitHub Pages project site:
 
 ```bash
-VITE_BASE_PATH=/reconcile/ npm run build
+VITE_APP_MODE=local VITE_BASE_PATH=/reconcile/ npm run build
 VITE_BASE_PATH=/reconcile/ npm run preview
 ```
 

@@ -14,3 +14,7 @@ real-statements/
 .DS_Store
 .local-validation/
 **/.private-*
+
+server-dist/
+*.pem
+*.key

@@ -1781,3 +1781,54 @@ footer {
     flex-wrap: wrap;
   }
 }
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #eef4ef;
+}
+.login-card {
+  width: min(100%, 430px);
+  padding: 32px;
+  background: #fff;
+  border: 1px solid #dbe6dd;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px #1438230d;
+}
+.login-card h1 {
+  font-size: 24px;
+  margin: 28px 0 12px;
+}
+.login-card p {
+  color: #60776a;
+  line-height: 1.7;
+}
+.login-card form {
+  display: grid;
+  gap: 18px;
+  margin: 24px 0;
+}
+.login-card small {
+  color: #7d8d83;
+}
+.account-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: #e4efe7;
+  padding: 10px 20px;
+  font-size: 12px;
+}
+.storage-modal {
+  max-width: 1050px;
+}
+.storage-modal td {
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.storage-modal td button {
+  margin: 3px;
+}

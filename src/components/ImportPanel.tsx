@@ -388,7 +388,7 @@ export function ImportPanel({
         </span>
       </div>
       <p className="section-description">
-        按来源分别上传文件，导入后会自动识别字段并解析；只有识别不出来的文件才需要你动手。所有文件只在当前浏览器内处理。
+        按来源分别上传文件，导入后会自动识别字段并解析；只有识别不出来的文件才需要你动手。在浏览器内预览字段并核对。
       </p>
       <div className="import-grid">
         {[...adapterRegistry.values()].map((adapter, index) => (

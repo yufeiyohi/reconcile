@@ -23,6 +23,7 @@ import { workerTask, cancelAllWorkers } from "./workers/client";
 import { MAX_FILES, MAX_FILE_SIZE, MAX_TOTAL_ROWS } from "./workers/limits";
 import { buildReport, downloadReport } from "./export/report";
 import { demoFiles } from "./demo";
+import type { WorkspaceState, StoredFile } from "../shared/workspace";
 const initialSettings: Settings = {
   mappings: {},
   accountIds: [],
@@ -60,16 +61,30 @@ function fingerprints(r: Reconciliation): Map<string, number> {
   }
   return m;
 }
-export default function App() {
+export default function App({
+  initialState,
+  onState,
+  externalFile,
+  onAudit,
+}: {
+  initialState?: WorkspaceState;
+  onState?: (state: WorkspaceState) => void;
+  externalFile?: StoredFile | null;
+  onAudit?: (action: string) => void;
+} = {}) {
   const [balanceInputs, setBalanceInputs] = useState<
     Record<string, BalanceInput>
-  >({});
+  >(initialState?.balanceInputs || {});
   const [resultView, setResultView] = useState("balance");
-  const [files, setFiles] = useState<ImportedFile[]>([]),
-    [settings, setSettings] = useState<Settings>(initialSettings),
+  const [files, setFiles] = useState<ImportedFile[]>(initialState?.files || []),
+    [settings, setSettings] = useState<Settings>(
+      initialState?.settings || initialSettings,
+    ),
     [result, setResult] = useState<Reconciliation | null>(null),
-    [manual, setManual] = useState<ManualMatch[]>([]),
-    [decisions, setDecisions] = useState<Record<string, Decision>>({}),
+    [manual, setManual] = useState<ManualMatch[]>(initialState?.manual || []),
+    [decisions, setDecisions] = useState<Record<string, Decision>>(
+      initialState?.decisions || {},
+    ),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [error, setError] = useState(""),
@@ -82,7 +97,14 @@ export default function App() {
   const generation = useRef(0),
     busyRef = useRef(false),
     previous = useRef<Reconciliation | null>(null),
-    knownAccounts = useRef<string[]>([]);
+    knownAccounts = useRef<string[]>(
+      initialState?.files.flatMap(
+        (f) =>
+          f.result?.transactions
+            .filter((t) => t.source !== "suishouji")
+            .map(accountKey) || [],
+      ) || [],
+    );
   const transactions = useMemo(
     () => files.flatMap((f) => f.result?.transactions || []),
     [files],
@@ -111,6 +133,37 @@ export default function App() {
     knownAccounts.current = keys;
   }, [transactions, settings.dateBasis]);
   useEffect(() => () => cancelAllWorkers(), []);
+  useEffect(() => {
+    onState?.({ files, settings, manual, decisions, balanceInputs });
+  }, [files, settings, manual, decisions, balanceInputs, onState]);
+  useEffect(() => {
+    if (!externalFile) return;
+    if (files.some((f) => f.file.id === externalFile.file.id)) {
+      setMessage("此账单已在当前对账中。");
+      return;
+    }
+    const next = [
+      ...files.filter(
+        (f) => externalFile.source !== "suishouji" || f.source !== "suishouji",
+      ),
+      externalFile,
+    ];
+    if (
+      next.length > MAX_FILES ||
+      next.reduce(
+        (n, f) => n + f.file.sheets.reduce((m, s) => m + s.rows.length, 0),
+        0,
+      ) > MAX_TOTAL_ROWS
+    ) {
+      setError("当前文件或行数已达上限，请先移除部分文件，再从数据库恢复。");
+      return;
+    }
+    invalidate();
+    setFiles(next);
+    setDecisions({});
+    setMessage("已从数据库恢复账单，请核对账户后开始对账。");
+  }, [externalFile]);
+
   function invalidate() {
     if (result) previous.current = result;
     setResult(null);
@@ -310,6 +363,7 @@ export default function App() {
         );
       }
       setResult(next);
+      onAudit?.("reconcile.run");
       previous.current = next;
       setManual(
         nextManual.filter((m) => !next.invalidManualIds.includes(m.id)),
@@ -340,7 +394,9 @@ export default function App() {
     if (
       files.length &&
       !window.confirm(
-        "清除全部本次文件、流水和人工决策？此操作只影响当前页面。",
+        onState
+          ? "清空当前工作区和人工决策？数据库账单仍保留，可从已保存账单恢复。"
+          : "清除全部本次文件、流水和人工决策？此操作只影响当前页面。",
       )
     )
       return;
@@ -456,7 +512,7 @@ export default function App() {
         <div className="header-actions">
           <span className="local-badge">
             <i />
-            本地处理
+            {onState ? "数据库保存" : "本地处理"}
           </span>
           <button onClick={clear}>清除本次数据</button>
         </div>
@@ -482,7 +538,7 @@ export default function App() {
               <a className="primary button" href="#imports">
                 开始导入 <span>↗</span>
               </a>
-              <button onClick={() => void demo()} disabled={busy}>
+              <button onClick={() => void demo()} disabled={busy || !!onState}>
                 试用合成示例
               </button>
               <span>无需注册 · 无需连接银行</span>
@@ -500,15 +556,20 @@ export default function App() {
             </div>
             <div className="hero-card-bottom">
               <i className="dot green-dot" />
-              只在你的浏览器中核对<small>文件不上传 · 刷新即清除</small>
+              只在你的浏览器中核对
+              <small>
+                {onState ? "自动保存 · 登录后恢复" : "文件不上传 · 刷新即清除"}
+              </small>
             </div>
           </div>
         </section>
         <div className="privacy-strip">
           <span className="shield">◇</span>
           <p>
-            <strong>你的账单，始终由你保管。</strong>不上传文件，不调用
-            AI，不连接银行。数据仅留在本次页面内存中。
+            <strong>你的账单，始终由你保管。</strong>
+            {onState
+              ? "数据保存到你的 MySQL 数据库，可在下次登录恢复。不调用 AI，不连接银行。"
+              : "不上传文件，不调用 AI，不连接银行。数据仅留在本次页面内存中。"}
           </p>
           <button className="text-button" onClick={() => setPrivacy(true)}>
             隐私与限制 ↗
@@ -537,7 +598,7 @@ export default function App() {
               </li>
             </ol>
             <div className="onboarding-actions">
-              <button onClick={() => void demo()} disabled={busy}>
+              <button onClick={() => void demo()} disabled={busy || !!onState}>
                 先用示例数据走一遍
               </button>
               <button className="text-button" onClick={() => setHelp(true)}>
@@ -681,10 +742,12 @@ export default function App() {
                   window.confirm(
                     "报告包含财务信息，请仅保存在可信设备，并谨慎分享。确认导出全部结果（不受筛选影响）？",
                   )
-                )
+                ) {
+                  onAudit?.("report.export");
                   downloadReport(
                     buildReport(result, settings, files, decisions),
                   );
+                }
               }}
               comparison={comparison}
               comparisonPrevious={comparisonPrevious}
@@ -704,7 +767,9 @@ export default function App() {
           </button>
         </footer>
       </main>
-      {help && <HelpModal onClose={() => setHelp(false)} />}
+      {help && (
+        <HelpModal onClose={() => setHelp(false)} persistent={!!onState} />
+      )}
       {privacy && (
         <div className="modal-backdrop" onClick={() => setPrivacy(false)}>
           <section
@@ -715,7 +780,7 @@ export default function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="section-heading">
-              <h2>你的数据留在本地</h2>
+              <h2>{onState ? "私人数据库与访问记录" : "你的数据留在本地"}</h2>
               <button
                 onClick={() => setPrivacy(false)}
                 aria-label="关闭隐私说明"
@@ -724,12 +789,15 @@ export default function App() {
               </button>
             </div>
             <p>
-              文件解析和对账在浏览器 Worker 中运行，不上传账单，不向 AI
-              或第三方接口发送内容，无统计、广告或会话录制。
+              {onState
+                ? "文件仍在浏览器中解析；账单表格、解析记录、对账设置与复核备注通过同源后端保存到你的 MySQL 数据库。登录与修改操作记录到审计日志，不向 AI 或第三方发送内容。"
+                : "文件解析和对账在浏览器 Worker 中运行，不上传账单，不向 AI 或第三方接口发送内容，无统计、广告或会话录制。"}
             </p>
             <p>
-              不使用 localStorage、IndexedDB 或 Service Worker
-              保存流水。刷新、关闭页面或“清除本次数据”会清空会话。你主动下载的报告会保留在设备上，需要自行管理。
+              {onState
+                ? "刷新或下次登录会恢复已保存的工作区；清除工作区或移除文件不会永久删除账单。永久删除需在“已保存账单”中单独操作。浏览器不使用 localStorage 保存密码或流水，会话使用 HttpOnly Cookie。"
+                : "不使用 localStorage、IndexedDB 或 Service Worker 保存流水。刷新、关闭页面或清除本次数据会清空会话。"}
+              你主动下载的报告会保留在设备上，需要自行管理。
             </p>
             <p>
               账号默认脱敏。金额、交易摘要和备注仍是敏感信息；共享屏幕或导出前请留意。

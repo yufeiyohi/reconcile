@@ -36,6 +36,7 @@ export default defineConfig(({ command }) => ({
       "pdfjs-dist/legacy/build/pdf.mjs",
     ],
   },
+  server: { proxy: { "/api": "http://127.0.0.1:3000" } },
   worker: { format: "es" },
   base: process.env.VITE_BASE_PATH || "./",
   test: { include: ["tests/unit/**/*.test.ts"] },

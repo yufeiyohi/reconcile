@@ -82,7 +82,13 @@ const questions: [string, string[]][] = [
     ],
   ],
 ];
-export function HelpModal({ onClose }: { onClose: () => void }) {
+export function HelpModal({
+  onClose,
+  persistent = false,
+}: {
+  onClose: () => void;
+  persistent?: boolean;
+}) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <section
@@ -101,14 +107,24 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
         <p className="muted">
           按常见疑问排列，点开即可。所有说明都只是核对线索，最终以你的原始账单为准。
         </p>
-        {questions.map(([question, answers]) => (
-          <details key={question}>
-            <summary>{question}</summary>
-            {answers.map((answer) => (
-              <p key={answer}>{answer}</p>
-            ))}
-          </details>
-        ))}
+        {questions.map(([question, originalAnswers]) => {
+          const answers =
+            persistent && question === "我的账单会不会被上传？关掉网页还在吗？"
+              ? [
+                  "当前是私人服务器模式：账单原始表格、解析记录、对账设置和备注会保存到你的 MySQL 数据库。下次登录或刷新可恢复已保存工作区。",
+                  "移除文件或清空工作区不会删除已保存账单；永久删除需在“已保存账单”中单独确认。不向 AI 或第三方发送内容。",
+                  "会话使用 HttpOnly Cookie；保存失败时页面会提示，请先处理再离开页面。",
+                ]
+              : originalAnswers;
+          return (
+            <details key={question}>
+              <summary>{question}</summary>
+              {answers.map((answer) => (
+                <p key={answer}>{answer}</p>
+              ))}
+            </details>
+          );
+        })}
       </section>
     </div>
   );
