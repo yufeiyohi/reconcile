@@ -343,3 +343,28 @@ describe("导出报告", () => {
     expect(report()).toContain("请以银行账单为准");
   });
 });
+
+it("does not auto-link company cards and clears unconfirmed historical company mapping", () => {
+  const ledger = (name: string) =>
+    tx(name, "suishouji", { accountName: name, accountId: name });
+  const bank = tx("cmb", "cmb", {
+    accountName: "招商活期",
+    accountId: "招商活期",
+  });
+  const records = [ledger("招商活期"), ledger("招商银行公司卡"), bank];
+  expect(suggestAccountMappings(records)).toEqual({
+    "suishouji:招商活期": "cmb:招商活期",
+  });
+  const old = {
+    "suishouji:招商活期": "cmb:招商活期",
+    "suishouji:招商银行公司卡": "cmb:招商活期",
+  };
+  expect(suggestAccountMappings(records, old)["suishouji:招商银行公司卡"]).toBe(
+    "",
+  );
+  expect(
+    suggestAccountMappings(records, old, {
+      "suishouji:招商银行公司卡": "cmb:招商活期",
+    })["suishouji:招商银行公司卡"],
+  ).toBe("cmb:招商活期");
+});

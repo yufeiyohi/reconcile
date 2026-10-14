@@ -8,9 +8,11 @@ import { resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { Pool, RowDataPacket, PoolConnection } from "mysql2/promise";
 import type { Config } from "./config";
+import { refreshDuplicates } from "./duplicates";
 import { transaction, json } from "./database";
 import { verifyPassword } from "./password";
 import { statementInput, workspaceInput, storedWorkspace } from "./schema";
+import { verifySource, inspectSource } from "../src/adapters/source-check";
 import { adapterRegistry } from "../src/adapters/registry";
 import type { ImportedFile } from "../src/components/types";
 import type { StoredFile } from "../shared/workspace";
@@ -39,6 +41,30 @@ function cookie(req: Request) {
 }
 const stamp = (date: unknown) =>
   new Date(String(date).replace(" ", "T") + "Z").toISOString();
+function reviewedEntry(value: unknown): ImportedFile {
+  const entry = json<ImportedFile>(value);
+  const check = inspectSource(entry.source, entry.file);
+  if (
+    check.kind === "mismatch" ||
+    (check.kind === "unknown" && !entry.options.sourceConfirmed)
+  )
+    return {
+      ...entry,
+      result: undefined,
+      parseError: check.message + "请从正确来源重新导入或确认来源。",
+    };
+  try {
+    return {
+      ...entry,
+      result: adapterRegistry
+        .get(entry.source)!
+        .parse(entry.file, entry.options),
+      parseError: undefined,
+    };
+  } catch (e) {
+    return { ...entry, result: undefined, parseError: (e as Error).message };
+  }
+}
 export function createApp(pool: Pool, config: Config, serveAssets = true) {
   const app = express();
   app.disable("x-powered-by");
@@ -188,7 +214,7 @@ export function createApp(pool: Pool, config: Config, serveAssets = true) {
         entries.map((r) => [
           r.hash,
           {
-            ...json<ImportedFile>(r.entry),
+            ...reviewedEntry(r.entry),
             version: r.version,
             savedAt: stamp(r.updated_at),
           },
@@ -253,7 +279,7 @@ export function createApp(pool: Pool, config: Config, serveAssets = true) {
       "SELECT COUNT(*) AS total FROM reconcile_statements",
     );
     const [rows] = await pool.query<RowDataPacket[]>(
-      "SELECT hash,source,name,version,updated_at,JSON_LENGTH(entry,'$.result.transactions') AS rows_count FROM reconcile_statements ORDER BY updated_at DESC,id DESC LIMIT 30 OFFSET ?",
+      "SELECT s.hash,s.source,s.name,s.version,s.updated_at,JSON_LENGTH(s.entry,'$.result.transactions') AS rows_count,(SELECT COUNT(*) FROM reconcile_transactions t WHERE t.statement_id=s.id AND t.excluded_duplicate=1) AS excluded_count FROM reconcile_statements s ORDER BY s.updated_at DESC,s.id DESC LIMIT 30 OFFSET ?",
       [Math.floor(page) * 30],
     );
     res.json({
@@ -263,7 +289,8 @@ export function createApp(pool: Pool, config: Config, serveAssets = true) {
         source: r.source,
         name: r.name,
         version: r.version,
-        rows: r.rows_count || 0,
+        rows: (r.rows_count || 0) - Number(r.excluded_count || 0),
+        excludedRows: Number(r.excluded_count || 0),
         savedAt: stamp(r.updated_at),
       })),
     });
@@ -275,7 +302,7 @@ export function createApp(pool: Pool, config: Config, serveAssets = true) {
     );
     if (!rows.length) throw new HttpError(404, "账单不存在");
     res.json({
-      ...json<ImportedFile>(rows[0].entry),
+      ...reviewedEntry(rows[0].entry),
       version: rows[0].version,
       savedAt: stamp(rows[0].updated_at),
     });
@@ -284,6 +311,19 @@ export function createApp(pool: Pool, config: Config, serveAssets = true) {
     const data = statementInput.safeParse(req.body);
     if (!data.success) throw new HttpError(400, "账单字段无效或超出限额");
     const { file, source, options, expectedVersion } = data.data;
+    try {
+      verifySource(source, file, options);
+    } catch (e) {
+      throw new HttpError(400, (e as Error).message);
+    }
+    if (
+      !adapterRegistry
+        .get(source)!
+        .supportedFileTypes.includes(
+          file.name.split(".").pop()?.toLowerCase() || "",
+        )
+    )
+      throw new HttpError(400, "文件格式与所选来源不符");
     const rowCount = file.sheets.reduce((n, s) => n + s.rows.length, 0);
     if (rowCount > 20100) throw new HttpError(400, "单文件行数超出限制");
     const entry: ImportedFile = {
@@ -301,6 +341,8 @@ export function createApp(pool: Pool, config: Config, serveAssets = true) {
     if (entry.result?.transactions.some((t) => t.accountName.length > 255))
       throw new HttpError(400, "账户名称超过 255 字符，请检查字段映射");
     const stored = await transaction(pool, async (c) => {
+      // Serialize imports/deletions before deciding which duplicate is canonical.
+      await c.query("SELECT id FROM reconcile_workspace WHERE id=1 FOR UPDATE");
       const [existing] = await c.execute<RowDataPacket[]>(
         "SELECT id,source,entry,version,updated_at FROM reconcile_statements WHERE hash=? FOR UPDATE",
         [file.id],
@@ -316,7 +358,13 @@ export function createApp(pool: Pool, config: Config, serveAssets = true) {
           );
         if (expectedVersion === undefined) {
           const previous = json<ImportedFile>(old.entry);
-          if (!isDeepStrictEqual(previous.options, options))
+          const defaults = (o: typeof options) => ({
+            ...o,
+            sourceConfirmed: !!o.sourceConfirmed,
+            trustTransactionIds: !!o.trustTransactionIds,
+            allSheets: !!o.allSheets,
+          });
+          if (!isDeepStrictEqual(defaults(previous.options), defaults(options)))
             throw new HttpError(
               409,
               "相同账单已保存，字段设置不同，请从已保存账单恢复后修改",
@@ -367,6 +415,7 @@ export function createApp(pool: Pool, config: Config, serveAssets = true) {
           [values],
         );
       }
+      const duplicates = await refreshDuplicates(c, source);
       await audit(
         c,
         req,
@@ -378,6 +427,9 @@ export function createApp(pool: Pool, config: Config, serveAssets = true) {
           rawRows: rowCount,
           transactions: ts.length,
           errors: entry.result?.errors.length || 0,
+          excludedDuplicates: duplicates.excluded,
+          referenceConflicts: duplicates.conflicts,
+          possibleOverlaps: duplicates.possible,
         },
       );
       return {
@@ -397,7 +449,7 @@ export function createApp(pool: Pool, config: Config, serveAssets = true) {
         "SELECT state FROM reconcile_workspace WHERE id=1 FOR UPDATE",
       );
       const [rows] = await c.execute<RowDataPacket[]>(
-        "SELECT id,version FROM reconcile_statements WHERE hash=? FOR UPDATE",
+        "SELECT id,version,source FROM reconcile_statements WHERE hash=? FOR UPDATE",
         [req.params.hash],
       );
       if (!rows.length) throw new HttpError(404, "账单不存在");
@@ -412,6 +464,7 @@ export function createApp(pool: Pool, config: Config, serveAssets = true) {
       await c.execute("DELETE FROM reconcile_statements WHERE id=?", [
         rows[0].id,
       ]);
+      await refreshDuplicates(c, rows[0].source);
       await audit(c, req, "statement.delete", "success", String(rows[0].id));
     });
     res.json({ ok: true });

@@ -56,6 +56,24 @@ export const migrations = [
 export async function migrate(pool: Pool, config: Config) {
   // Explicit migration command; normal server startup never creates/replaces tables.
   for (const ddl of migrations) await pool.query(ddl);
+  const [columns] = await pool.query(
+    "SHOW COLUMNS FROM reconcile_transactions",
+  );
+  const existingColumns = new Set(
+    (columns as { Field: string }[]).map((c) => c.Field),
+  );
+  if (!existingColumns.has("excluded_duplicate"))
+    await pool.query(
+      "ALTER TABLE reconcile_transactions ADD COLUMN excluded_duplicate TINYINT NOT NULL DEFAULT 0",
+    );
+  if (!existingColumns.has("duplicate_of"))
+    await pool.query(
+      "ALTER TABLE reconcile_transactions ADD COLUMN duplicate_of BIGINT NULL",
+    );
+  if (!existingColumns.has("duplicate_issue"))
+    await pool.query(
+      "ALTER TABLE reconcile_transactions ADD COLUMN duplicate_issue VARCHAR(16) NULL",
+    );
   const [users] = await pool.query("SELECT id FROM reconcile_users WHERE id=1");
   if (!(users as unknown[]).length) {
     const hash =

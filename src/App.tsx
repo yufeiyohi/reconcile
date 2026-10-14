@@ -2,12 +2,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ImportPanel } from "./components/ImportPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { ResultsPanel } from "./components/ResultsPanel";
+import { DuplicatePanel } from "./components/DuplicatePanel";
+import { deduplicateBankTransactions } from "./domain/reconciliation/deduplicate";
 import { BalancePanel } from "./components/BalancePanel";
 import type { BalanceInput } from "./domain/reconciliation/balances";
 import { HelpModal } from "./components/HelpModal";
 import type { Decision, ImportedFile } from "./components/types";
 import type { ImportOptions, ParsedFile } from "./adapters/types";
 import { adapterRegistry } from "./adapters/registry";
+import { inspectSource } from "./adapters/source-check";
 import { initialOptions } from "./adapters/profiles";
 import { suggestMapping } from "./adapters/generic";
 import {
@@ -105,10 +108,14 @@ export default function App({
             .map(accountKey) || [],
       ) || [],
     );
-  const transactions = useMemo(
-    () => files.flatMap((f) => f.result?.transactions || []),
+  const duplicateReport = useMemo(
+    () =>
+      deduplicateBankTransactions(
+        files.flatMap((f) => f.result?.transactions || []),
+      ),
     [files],
   );
+  const transactions = duplicateReport.transactions;
   useEffect(() => {
     const keys = [
       ...new Set(
@@ -122,7 +129,11 @@ export default function App({
     setSettings((s) => ({
       ...s,
       // Suggested links are pre-filled; a choice the user already made stays.
-      mappings: suggestAccountMappings(transactions, s.mappings),
+      mappings: suggestAccountMappings(
+        transactions,
+        s.mappings,
+        s.confirmedMappings,
+      ),
       accountIds: [
         ...s.accountIds.filter((a) => keys.includes(a)),
         ...addedKeys.filter((a) => !s.accountIds.includes(a)),
@@ -236,15 +247,28 @@ export default function App({
           encoding,
         });
         if (!active(token)) return;
+        const sourceCheck = inspectSource(source, parsed);
+        if (sourceCheck.kind === "mismatch")
+          throw new Error(sourceCheck.message);
         if ([...files, ...added].some((x) => x.file.id === parsed.id))
           throw new Error(
             "相同文件内容已导入，不会重复计入；如需修改映射，请展开原文件",
           );
+        if (
+          sourceCheck.kind === "unknown" &&
+          !window.confirm(sourceCheck.message + "\n是否确认该来源并继续导入？")
+        ) {
+          setMessage("已取消导入，原有文件和数据库记录未变更。");
+          return;
+        }
         added.push({
           key: `${source}:${parsed.id}`,
           source,
           file: parsed,
-          options: initialOptions(source, parsed),
+          options: {
+            ...initialOptions(source, parsed),
+            sourceConfirmed: sourceCheck.kind === "unknown",
+          },
           importedAt: new Date().toLocaleTimeString("zh-CN", { hour12: false }),
         });
       }
@@ -434,6 +458,7 @@ export default function App({
           fixedAccount: "",
           defaultCurrency: "CNY",
           signedAmount: false,
+          sourceConfirmed: true,
         };
         const parsed = await workerTask<ParseResult>("normalize", {
           source,
@@ -672,6 +697,7 @@ export default function App({
             setMessage("文件已移除，结果已清空；请重新对账。");
           }}
         />
+        <DuplicatePanel report={duplicateReport} files={files} />
         <SettingsPanel
           transactions={transactions}
           settings={settings}

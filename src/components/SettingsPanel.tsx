@@ -1,7 +1,10 @@
 import type { Transaction } from "../domain/transactions/types";
 import { maskAccount, sourceNames } from "../domain/transactions/types";
 import { accountKey, type Settings } from "../domain/reconciliation/types";
-import { suggestAccountMappings } from "../domain/reconciliation/suggest";
+import {
+  suggestAccountMappings,
+  requiresManualMapping,
+} from "../domain/reconciliation/suggest";
 export function SettingsPanel({
   transactions,
   settings,
@@ -67,6 +70,10 @@ export function SettingsPanel({
                   onChange={(e) =>
                     change({
                       mappings: { ...settings.mappings, [key]: e.target.value },
+                      confirmedMappings: {
+                        ...settings.confirmedMappings,
+                        [key]: e.target.value,
+                      },
                     })
                   }
                 >
@@ -78,6 +85,11 @@ export function SettingsPanel({
                     </option>
                   ))}
                 </select>
+                {requiresManualMapping(t.accountName) && (
+                  <small className="warning-text">
+                    公司 / 对公账户需单独手动确认，不按银行名称自动关联
+                  </small>
+                )}
                 {settings.mappings[key] &&
                   settings.mappings[key] === suggested[key] && (
                     <small className="auto-hint">已自动关联 · 请核对</small>

@@ -1,3 +1,4 @@
+import { deduplicateBankTransactions } from "./deduplicate";
 import type { Transaction } from "../transactions/types";
 import {
   accountKey,
@@ -45,6 +46,8 @@ export function validateManual(
   const rows = ids.map((id) => byId.get(id));
   if (rows.some((t) => !t)) return "原记录已不存在，人工匹配失效";
   const ts = rows as Transaction[];
+  if (ts.some((t) => t.duplicateOf))
+    return "可靠编号重复副本已排除，不能参与人工匹配";
   const banks = ts.slice(0, m.bankIds.length),
     ledger = ts.slice(m.bankIds.length);
   if (
@@ -87,11 +90,14 @@ export function reconcile(
     s.tolerance > 31
   )
     throw new Error("请选择有效日期范围，日期容差须为 0–31 天");
-  const transactions = [...input].sort((a, b) => a.id.localeCompare(b.id));
+  const deduplicated = deduplicateBankTransactions(input);
+  const transactions = deduplicated.transactions.sort((a, b) =>
+    a.id.localeCompare(b.id),
+  );
   if (new Set(transactions.map((t) => t.id)).size !== transactions.length)
     throw new Error("检测到重复记录 ID，请移除重复文件");
   const items: ResultItem[] = [],
-    warnings: string[] = [],
+    warnings: string[] = [...deduplicated.warnings],
     invalidManualIds: string[] = [];
   const used = new Set<string>();
   const add = (
@@ -120,10 +126,17 @@ export function reconcile(
       t.source === "suishouji" ? [t] : [],
       reason,
     );
+  for (const t of transactions)
+    if (t.duplicateOf)
+      single(
+        "excluded-duplicate",
+        t,
+        "已确认跨文件可靠编号重复，不重复计入金额；原始副本保留供追溯。",
+      );
   const coverage = new Map<string, [string, string] | null>();
   for (const a of s.accountIds) {
     const rows = transactions.filter(
-      (t) => target(t, s) === a && t.currency === "CNY",
+      (t) => target(t, s) === a && t.currency === "CNY" && !t.duplicateOf,
     );
     const b = range(
         rows.filter((t) => t.source !== "suishouji"),
@@ -152,6 +165,7 @@ export function reconcile(
       );
   }
   for (const t of transactions) {
+    if (t.duplicateOf) continue;
     const a = target(t, s),
       d = dateOf(t, s),
       c = coverage.get(a);
@@ -388,6 +402,7 @@ export function summarize(
     const a = target(t, s),
       d = dateOf(t, s);
     if (
+      t.duplicateOf ||
       !a ||
       !s.accountIds.includes(a) ||
       t.currency !== "CNY" ||

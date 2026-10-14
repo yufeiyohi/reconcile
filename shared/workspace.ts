@@ -18,6 +18,7 @@ export interface StatementSummary {
   name: string;
   version: number;
   rows: number;
+  excludedRows?: number;
   savedAt: string;
 }
 export interface AuditEvent {

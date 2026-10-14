@@ -21,6 +21,14 @@ npm start
 
 The backend reads `.env`; credentials must never use a `VITE_` prefix. Persistent statements include extracted original table data and server-normalized records (not original binary files). Refresh/login restores saved workspace. Removing a file from a workspace preserves it in the library; permanent deletion is a separate action. Audit records contain operation metadata, not financial rows or credentials.
 
+## Import safety and duplicate handling
+
+Known statement templates must match the selected source; both browser and backend enforce this. Unknown layouts require explicit source confirmation. Company/corporate ledger accounts require a manual association; unconfirmed historical company-card suggestions are cleared without deleting statements.
+
+Cross-file copies with the same bank account, a reliable unique transaction ID, and consistent business content count once. Original copies remain traceable. Standard bank transaction identifiers and WeChat transaction IDs are supported; generic reference fields require explicit confirmation that they are stable and unique per transaction. Same-day/same-amount rows, conflicting IDs, and repeated IDs within one file are retained for review.
+
+Database duplicates are flagged, not physically deleted. Workspace totals and balances exclude confirmed copies, while suspected overlap keeps balances unverified. After upgrading, Hermes must run `npm run db:migrate` and restart the service; see the deployment guide.
+
 ## Daily closing balance review
 
 Results now default to one debit/payment account at a time, ordered oldest first. Enter the Suishouji closing balance immediately before the selected start date and confirm complete exports. All three ledger sheets—expenses, income, and transfers—contribute to the running balance. Transfers debit the source account and credit the destination account.

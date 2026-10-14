@@ -46,6 +46,9 @@ it("logs in, saves imported statements and balances, reloads, reviews audit, log
   });
   try {
     const page = await browser.newPage();
+    page.on("dialog", (d) => {
+      if (d.message().includes("无法识别这份文件")) void d.accept();
+    });
     const failures: string[] = [];
     page.on("pageerror", (e) => failures.push(e.message));
     await page.goto(config.APP_ORIGIN);

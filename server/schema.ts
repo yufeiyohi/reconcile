@@ -41,6 +41,8 @@ export const statementInput = z.object({
     defaultCurrency: z.string().max(16),
     signedAmount: z.boolean(),
     allSheets: z.boolean().optional(),
+    sourceConfirmed: z.boolean().optional(),
+    trustTransactionIds: z.boolean().optional(),
   }),
   expectedVersion: z.number().int().min(1).optional(),
 });
@@ -48,6 +50,9 @@ export const storedWorkspace = z.object({
   statementHashes: z.array(z.string().regex(/^[a-f0-9]{64}$/)).max(15),
   settings: z.object({
     mappings: z.record(z.string().max(512), z.string().max(512)),
+    confirmedMappings: z
+      .record(z.string().max(512), z.string().max(512))
+      .optional(),
     accountIds: z.array(z.string().max(512)).max(200),
     start: z.string().max(10),
     end: z.string().max(10),

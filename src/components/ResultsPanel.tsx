@@ -151,7 +151,9 @@ export function ResultsPanel({
   );
   const selectTx = (t: Transaction) => {
     const taken = result.items.some(
-      (i) => success(i) && [...i.bankIds, ...i.ledgerIds].includes(t.id),
+      (i) =>
+        (success(i) || i.status === "excluded-duplicate") &&
+        [...i.bankIds, ...i.ledgerIds].includes(t.id),
     );
     return (
       <label className="select-transaction" key={t.id}>
@@ -212,7 +214,7 @@ export function ResultsPanel({
       </div>
       <div className="metrics">
         <div>
-          <small>纳入期间的原始记录</small>
+          <small>参与计算的有效记录</small>
           <strong>
             {summaries.reduce((n, s) => n + s.bankCount + s.ledgerCount, 0)}
           </strong>
@@ -228,7 +230,11 @@ export function ResultsPanel({
         <div>
           <small>待核实记录组</small>
           <strong className="amber-text">
-            {result.items.filter((i) => !success(i)).length}
+            {
+              result.items.filter(
+                (i) => !success(i) && i.status !== "excluded-duplicate",
+              ).length
+            }
           </strong>
           <span>含未映射、覆盖不足</span>
         </div>
@@ -326,7 +332,10 @@ export function ResultsPanel({
       )}
       <h3 className="summary-title">
         账户期间汇总{" "}
-        <small>全部数据，不随筛选或人工标记改变；转账 / 未知方向单独展示</small>
+        <small>
+          全部有效数据（可靠重复副本已排除），不随筛选或人工标记改变；转账 /
+          未知方向单独展示
+        </small>
       </h3>
       <div className="table-scroll">
         <table>
@@ -381,6 +390,7 @@ export function ResultsPanel({
                       items.filter(
                         (i) =>
                           !success(i) &&
+                          i.status !== "excluded-duplicate" &&
                           !["missing", "extra"].includes(i.status),
                       ),
                     )}
@@ -670,7 +680,8 @@ export function ResultsPanel({
                 disabled={
                   !detailItem.bankIds.length ||
                   !detailItem.ledgerIds.length ||
-                  success(detailItem)
+                  success(detailItem) ||
+                  detailItem.status === "excluded-duplicate"
                 }
                 onClick={() => {
                   onManual(detailItem.bankIds, detailItem.ledgerIds);

@@ -244,7 +244,10 @@ export function BalancePanel({
     ? selected
     : accounts[0]?.[0] || "";
   const bank = useMemo(
-    () => result.transactions.filter((t) => accountKey(t) === key),
+    () =>
+      result.transactions.filter(
+        (t) => accountKey(t) === key && !t.duplicateOf,
+      ),
     [result, key],
   );
   const ledger = useMemo(
@@ -287,6 +290,10 @@ export function BalancePanel({
     [...bank, ...ledger].map((t) => t.sourceFileId),
   );
   const issues: string[] = [];
+  if (bank.some((t) => t.duplicateIssue))
+    issues.push(
+      "本账户存在跨文件疑似重叠或编号冲突，请先核实，余额暂不判为正常",
+    );
   if (!ledger.length) issues.push("尚未关联随手记账户，请先在第 2 步关联");
   if (
     files.some(

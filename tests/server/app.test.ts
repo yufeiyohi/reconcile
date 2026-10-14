@@ -33,7 +33,11 @@ const file = {
   warnings: [],
   sheets: [{ name: "CSV", rows }],
 };
-const payload = { source: "icbc", file, options: initialOptions("icbc", file) };
+const payload = {
+  source: "icbc",
+  file,
+  options: { ...initialOptions("icbc", file), sourceConfirmed: true },
+};
 let revision = 0,
   version = 1;
 beforeAll(async () => {
@@ -227,6 +231,107 @@ describe("authenticated MySQL API", () => {
       ),
     ).toBe(true);
     expect((await agent.get("/api/sync/status")).body.available).toBe(false);
+  });
+  it("rejects wrong bank and unconfirmed source before writing any database data", async () => {
+    const wrong = {
+      ...file,
+      id: createHash("sha256").update("wrong-bank").digest("hex"),
+      sheets: [
+        {
+          name: "CSV",
+          rows: [
+            ["交易日期", "收入", "支出", "交易备注"],
+            ["20260101", "", "10", "人工构造"],
+          ],
+        },
+      ],
+    };
+    const before = (
+      await pool.query<RowDataPacket[]>(
+        "SELECT COUNT(*) n FROM reconcile_statements",
+      )
+    )[0][0].n;
+    await agent
+      .post("/api/statements")
+      .set(headers)
+      .send({
+        ...payload,
+        file: wrong,
+        options: { ...initialOptions("icbc", wrong), sourceConfirmed: true },
+      })
+      .expect(400);
+    await agent
+      .post("/api/statements")
+      .set(headers)
+      .send({
+        ...payload,
+        options: { ...payload.options, sourceConfirmed: false },
+      })
+      .expect(400);
+    expect(
+      (
+        await pool.query<RowDataPacket[]>(
+          "SELECT COUNT(*) n FROM reconcile_statements",
+        )
+      )[0][0].n,
+    ).toBe(before);
+  });
+  it("marks cross-file reliable duplicates once and promotes the survivor after canonical deletion", async () => {
+    const make = (title: string) => {
+      const rows = [
+        [title],
+        ["日期", "方向", "金额", "账户", "摘要", "余额", "银行交易编号"],
+        [
+          "2026-01-01",
+          "支出",
+          "10",
+          "去重测试账户",
+          "人工构造",
+          "990",
+          "BANK-DEDUPE-001",
+        ],
+      ];
+      const file = {
+        id: createHash("sha256").update(JSON.stringify(rows)).digest("hex"),
+        name: title + ".csv",
+        warnings: [],
+        sheets: [{ name: "CSV", rows }],
+      };
+      return {
+        source: "icbc",
+        file,
+        options: { ...initialOptions("icbc", file), sourceConfirmed: true },
+      };
+    };
+    const one = make("人工构造月账单"),
+      two = make("人工构造年度账单");
+    await agent.post("/api/statements").set(headers).send(one).expect(200);
+    await agent.post("/api/statements").set(headers).send(two).expect(200);
+    const [rows] = await pool.query<RowDataPacket[]>(
+      "SELECT t.excluded_duplicate,s.hash FROM reconcile_transactions t JOIN reconcile_statements s ON s.id=t.statement_id WHERE t.account_name='去重测试账户'",
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows.filter((r) => Number(r.excluded_duplicate) === 0)).toHaveLength(
+      1,
+    );
+    const canonical = rows.find((r) => !Number(r.excluded_duplicate))!;
+    await agent
+      .delete("/api/statements/" + canonical.hash)
+      .set(headers)
+      .send({ version: 1 })
+      .expect(200);
+    const [remaining] = await pool.query<RowDataPacket[]>(
+      "SELECT excluded_duplicate,duplicate_of FROM reconcile_transactions WHERE account_name='去重测试账户'",
+    );
+    expect(remaining).toHaveLength(1);
+    expect(Number(remaining[0].excluded_duplicate)).toBe(0);
+    expect(remaining[0].duplicate_of).toBeNull();
+    const last = one.file.id === canonical.hash ? two : one;
+    await agent
+      .delete("/api/statements/" + last.file.id)
+      .set(headers)
+      .send({ version: 1 })
+      .expect(200);
   });
   it("invalidates logout and expired sessions", async () => {
     await agent.post("/api/auth/logout").set(headers).expect(200);

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+test.beforeEach(async ({page}) => { page.on('dialog', d => { if(d.message().includes('无法识别这份文件'))void d.accept(); }); });
 import type { Page } from "@playwright/test";
 async function upload(page: Page, source: string, text: string) {
   await page.getByLabel(`上传${source}`, { exact: true }).setInputFiles({

@@ -172,6 +172,13 @@ export function createGenericAdapter(
               row.map((value, j) => [`${j + 1}:${headers[j] || ""}`, value]),
             ),
           };
+          const idHeader = headers[m.externalTransactionId ?? -1]?.trim();
+          t.externalIdTrusted =
+            id !== "suishouji" &&
+            !!t.externalTransactionId &&
+            (options.trustTransactionIds === true ||
+              idHeader === "银行交易编号" ||
+              (id === "wechat" && idHeader === "交易单号"));
           if (m.balance !== undefined && get("balance").trim()) {
             try {
               const balance = parseAmount(get("balance"));

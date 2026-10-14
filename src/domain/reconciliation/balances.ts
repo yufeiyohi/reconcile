@@ -114,6 +114,9 @@ export function balanceDays(
   end: string,
   issues: string[] = [],
 ): BalanceDay[] {
+  bank = bank.filter((t) => !t.duplicateOf);
+  if (bank.some((t) => t.duplicateIssue))
+    issues = [...issues, "存在跨文件疑似重叠或编号冲突，请先核实"];
   if (!input.start || !end || input.start > end) return [];
   try {
     parseDate(input.start);

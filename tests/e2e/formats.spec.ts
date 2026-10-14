@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+test.beforeEach(async ({page}) => { page.on('dialog', d => { if(d.message().includes('无法识别这份文件'))void d.accept(); }); });
 import * as XLS from "@e965/xlsx";
 const headers = [
   "交易类型",

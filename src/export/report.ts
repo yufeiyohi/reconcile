@@ -95,7 +95,7 @@ export function buildReport(
       l
         .map((t) => [t.description, t.note].filter(Boolean).join("；"))
         .join(" / "),
-      money(net(b) - net(l)),
+      item.status === "excluded-duplicate" ? "不计入" : money(net(b) - net(l)),
       [...b, ...l]
         .map(
           (t) =>

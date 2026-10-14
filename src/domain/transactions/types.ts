@@ -17,6 +17,9 @@ export interface Transaction {
   category?: string;
   note?: string;
   externalTransactionId?: string;
+  externalIdTrusted?: boolean;
+  duplicateOf?: string;
+  duplicateIssue?: string;
   sourceFileId: string;
   sheetName?: string;
   originalRowNumber: number;

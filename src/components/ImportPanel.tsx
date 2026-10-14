@@ -1,6 +1,7 @@
 import { useId, useRef, useState } from "react";
 import { adapterRegistry } from "../adapters/registry";
 import { fieldLabels, type Field, type ImportOptions } from "../adapters/types";
+import { inspectSource } from "../adapters/source-check";
 import { detectHeader } from "../adapters/profiles";
 import { suggestMapping } from "../adapters/generic";
 import { maskAccount } from "../domain/transactions/types";
@@ -77,6 +78,27 @@ export function FileEditor({
             同时解析全部已识别工作表（各表独立映射；含转账两侧）
           </label>
         )}
+        {inspectSource(entry.source, entry.file).kind === "unknown" && (
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={!!options.sourceConfirmed}
+              onChange={(e) => set({ sourceConfirmed: e.target.checked })}
+            />
+            我已核实此文件属于当前选择的银行 / 来源
+          </label>
+        )}
+        {entry.source !== "suishouji" &&
+          options.mapping.externalTransactionId !== undefined && (
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={!!options.trustTransactionIds}
+                onChange={(e) => set({ trustTransactionIds: e.target.checked })}
+              />
+              我已核实“交易编号”是本银行每笔交易唯一且稳定的编号（不确定不要勾选）
+            </label>
+          )}
         <div className="form-grid">
           <label>
             工作表

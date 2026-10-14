@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+test.beforeEach(async ({page}) => { page.on('dialog', d => { if(d.message().includes('无法识别这份文件'))void d.accept(); }); });
 import type { Page } from "@playwright/test";
 const synthetic = (rows: string[]) =>
   "日期,方向,金额,账户,摘要,币种\n" + rows.join("\n");

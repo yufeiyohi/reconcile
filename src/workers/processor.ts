@@ -1,5 +1,6 @@
 import { readFileData } from "./files";
 import { adapterRegistry } from "../adapters/registry";
+import { verifySource } from "../adapters/source-check";
 import { reconcile } from "../domain/reconciliation/engine";
 self.onmessage = async (event: MessageEvent) => {
   const { type, payload } = event.data;
@@ -14,6 +15,7 @@ self.onmessage = async (event: MessageEvent) => {
     else if (type === "normalize") {
       const adapter = adapterRegistry.get(payload.source);
       if (!adapter) throw new Error("适配器不存在");
+      verifySource(payload.source, payload.file, payload.options);
       result = adapter.parse(payload.file, payload.options);
     } else if (type === "reconcile")
       result = reconcile(

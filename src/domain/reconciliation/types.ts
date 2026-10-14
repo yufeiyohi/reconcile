@@ -1,5 +1,6 @@
 import type { Transaction } from "../transactions/types";
 export type Status =
+  | "excluded-duplicate"
   | "matched"
   | "date"
   | "missing"
@@ -14,6 +15,7 @@ export type Status =
   | "unsupported"
   | "transfer";
 export const statusLabels: Record<Status, string> = {
+  "excluded-duplicate": "可靠编号重复副本已排除",
   matched: "严格匹配成功",
   date: "疑似日期偏差",
   missing: "疑似漏记",
@@ -30,6 +32,8 @@ export const statusLabels: Record<Status, string> = {
 };
 /** Plain-language explanation of each status, and what to do about it. */
 export const statusHelp: Record<Status, string> = {
+  "excluded-duplicate":
+    "与另一文件为相同银行账户、可靠编号和关键内容相同的重复副本，未计入金额，原始位置保留。",
   matched: "两边金额、方向、日期都对得上，不用处理。",
   date: "金额和方向都一样，只是日期差了几天，常见于银行延迟入账。核对后可在详情里确认这组匹配。",
   missing: "银行有这笔，随手记里没找到。多半是漏记了，核实后到随手记补记。",
@@ -51,6 +55,7 @@ export const statusHelp: Record<Status, string> = {
 };
 export interface Settings {
   mappings: Record<string, string>;
+  confirmedMappings?: Record<string, string>;
   accountIds: string[];
   start: string;
   end: string;

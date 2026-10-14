@@ -37,6 +37,8 @@ export interface ImportOptions {
   defaultCurrency: string;
   signedAmount: boolean;
   allSheets?: boolean;
+  sourceConfirmed?: boolean;
+  trustTransactionIds?: boolean;
 }
 export interface DetectionResult {
   confidence: number;

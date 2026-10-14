@@ -16,9 +16,12 @@ const sourceKeywords: [string, RegExp][] = [
  * unambiguous single candidate per source is suggested, and an entry the user
  * already touched (including one cleared on purpose) is never overwritten.
  */
+export const requiresManualMapping = (name: string) =>
+  /公司|企业|对公|单位|商务/i.test(name);
 export function suggestAccountMappings(
   transactions: Transaction[],
   existing: Record<string, string> = {},
+  confirmed: Record<string, string> = {},
 ): Record<string, string> {
   const ledger = new Map<string, string>();
   const banks = new Map<string, string[]>();
@@ -32,10 +35,20 @@ export function suggestAccountMappings(
   }
   const result = { ...existing };
   for (const [key, name] of ledger) {
+    if (requiresManualMapping(name)) {
+      if (result[key] && confirmed[key] !== result[key]) result[key] = "";
+      continue;
+    }
     if (key in result) continue;
     const source = sourceKeywords.find(([, re]) => re.test(name))?.[0];
     const candidates = source ? banks.get(source) || [] : [];
-    if (candidates.length === 1) result[key] = candidates[0];
+    if (
+      candidates.length === 1 &&
+      !Object.entries(result).some(
+        ([other, value]) => other !== key && value === candidates[0],
+      )
+    )
+      result[key] = candidates[0];
   }
   return result;
 }

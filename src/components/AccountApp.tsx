@@ -270,14 +270,14 @@ export function AccountApp() {
             {panel === "files" ? (
               <>
                 <p>
-                  从当前工作区移除文件不会删除数据库记录。随手记暂以导入快照更新，自动接口尚未接入。
+                  从当前工作区移除文件不会删除数据库记录。可靠重复副本只从库内有效流水排除，原始账单仍可恢复；当前对账按选中的文件去重。随手记暂以导入快照更新，自动接口尚未接入。
                 </p>
                 <div className="table-scroll">
                   <table>
                     <thead>
                       <tr>
                         <th>来源 / 文件</th>
-                        <th>有效记录</th>
+                        <th>库内有效 / 重复副本</th>
                         <th>保存时间</th>
                         <th>操作</th>
                       </tr>
@@ -290,7 +290,9 @@ export function AccountApp() {
                             <br />
                             {maskAccount(f.name)}
                           </td>
-                          <td>{f.rows}</td>
+                          <td>
+                            {f.rows} / {f.excludedRows || 0}
+                          </td>
                           <td>{new Date(f.savedAt).toLocaleString("zh-CN")}</td>
                           <td>
                             <button
